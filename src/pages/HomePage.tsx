@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ROUTES } from '@/types';
@@ -20,12 +20,36 @@ import { HomeBackground } from '@/components/home/HomeBackground';
 export function HomePage() {
   const navigate = useNavigate();
   const { isSoundEnabled, toggleSound, isFullscreen, toggleFullscreen } = useTheme();
+  const hasSpokenRef = useRef(false);
 
   useEffect(() => {
+    // Attempt automatic speech intro
     const timer = setTimeout(() => {
-      speechSynthesizer.speakHomeIntro();
-    }, 600);
-    return () => clearTimeout(timer);
+      if (!hasSpokenRef.current) {
+        speechSynthesizer.speakHomeIntro();
+        hasSpokenRef.current = true;
+      }
+    }, 500);
+
+    // Fallback: If browser autoplay policy blocked speech on page load, speak on first user click/tap
+    const handleFirstInteraction = () => {
+      speechSynthesizer.loadVoices();
+      if (!hasSpokenRef.current) {
+        speechSynthesizer.speakHomeIntro();
+        hasSpokenRef.current = true;
+      }
+    };
+
+    window.addEventListener('click', handleFirstInteraction, { once: true });
+    window.addEventListener('pointerdown', handleFirstInteraction, { once: true });
+    window.addEventListener('keydown', handleFirstInteraction, { once: true });
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('click', handleFirstInteraction);
+      window.removeEventListener('pointerdown', handleFirstInteraction);
+      window.removeEventListener('keydown', handleFirstInteraction);
+    };
   }, []);
 
   return (

@@ -1,19 +1,15 @@
 /**
  * SpeechSynthesizer — Browser AI Host Voice Engine
  * ─────────────────────────────────────────────────────────────────────────────
- * Uses the Web Speech API (speechSynthesis) to provide a natural English voice host
- * strictly at key moments:
- * ✔ Home Page: "Welcome to the Freshers Challenge Arena."
- * ✔ Logo Challenge Start: "Can you identify this logo?"
- * ✔ Movie Challenge Start: "Watch the clip carefully and guess the movie."
- * ✔ Reveal Answer: "The correct answer is..." -> (1s pause) -> Answer Name
- * ✔ Final Question: "This is the final question."
+ * Uses the Web Speech API (speechSynthesis) to provide a natural English voice host.
+ * Fixed for modern Chrome/Edge autoplay policy & late voice loading.
  */
 
 class SpeechSynthesizerService {
   private synth: SpeechSynthesis | null = null;
   private voice: SpeechSynthesisVoice | null = null;
   private isEnabled: boolean = true;
+  private hasUserInteracted: boolean = false;
 
   constructor() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -23,10 +19,25 @@ class SpeechSynthesizerService {
       if (this.synth.onvoiceschanged !== undefined) {
         this.synth.onvoiceschanged = () => this.loadVoices();
       }
+
+      // Track user interaction to unlock browser Web Speech API & Web Audio API
+      const unlockAudio = () => {
+        this.hasUserInteracted = true;
+        if (this.synth) {
+          this.synth.resume();
+        }
+        window.removeEventListener('click', unlockAudio);
+        window.removeEventListener('touchstart', unlockAudio);
+        window.removeEventListener('keydown', unlockAudio);
+      };
+
+      window.addEventListener('click', unlockAudio, { once: true });
+      window.addEventListener('touchstart', unlockAudio, { once: true });
+      window.addEventListener('keydown', unlockAudio, { once: true });
     }
   }
 
-  private loadVoices() {
+  public loadVoices() {
     if (!this.synth) return;
     const voices = this.synth.getVoices();
 
@@ -60,6 +71,16 @@ class SpeechSynthesizerService {
       if (!this.isEnabled || !this.synth) {
         resolve();
         return;
+      }
+
+      // Ensure voices are loaded
+      if (!this.voice) {
+        this.loadVoices();
+      }
+
+      // Resume synth if paused by browser
+      if (this.synth.paused) {
+        this.synth.resume();
       }
 
       this.synth.cancel();
@@ -120,10 +141,13 @@ class SpeechSynthesizerService {
 
   /**
    * ✔ Dramatic Answer Reveal
-   * Speaks: "The correct answer is..." -> (1s pause) -> Answer Name!
    */
   public speakReveal(answerText: string) {
     if (!this.isEnabled || !this.synth) return;
+
+    if (this.synth.paused) {
+      this.synth.resume();
+    }
 
     this.synth.cancel();
 
@@ -135,6 +159,7 @@ class SpeechSynthesizerService {
     part1.onend = () => {
       setTimeout(() => {
         if (!this.synth) return;
+        if (this.synth.paused) this.synth.resume();
         const part2 = new SpeechSynthesisUtterance(answerText);
         if (this.voice) part2.voice = this.voice;
         part2.rate = 0.95;
