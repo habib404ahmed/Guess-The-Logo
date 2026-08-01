@@ -123,7 +123,7 @@ export function GuessMoviePage() {
     if (index + 1 >= questions.length) {
       setIsComplete(true);
     } else {
-      // Reset for next question with new countdown & voice
+      // Reset for next question with countdown
       setIsControlsDisabled(true);
       setAutoPlayVideo(false);
       setShowCountdown(true);
@@ -166,10 +166,10 @@ export function GuessMoviePage() {
       totalSeconds={questionTime}
       accentColor="secondary"
     >
-      {/* ── Sequential AI Voice Intro & 3-2-1-GO Stage Countdown Modal ── */}
+      {/* ── 3-2-1-GO Stage Countdown Modal Overlay (Voice intro ONLY on index === 0) ── */}
       {showCountdown && (
         <StageCountdownModal
-          speakAiIntro={true}
+          speakAiIntro={index === 0}
           onComplete={handleCountdownComplete}
         />
       )}

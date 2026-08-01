@@ -2,7 +2,12 @@
  * SpeechSynthesizer — Browser AI Host Voice Engine
  * ─────────────────────────────────────────────────────────────────────────────
  * Uses the Web Speech API (speechSynthesis) to provide a natural English voice host
- * for live auditorium events & stage game show announcements.
+ * strictly at key moments:
+ * ✔ Home Page: "Welcome to the Freshers Challenge Arena."
+ * ✔ Logo Challenge Start: "Can you identify this logo?"
+ * ✔ Movie Challenge Start: "Watch the clip carefully and guess the movie."
+ * ✔ Reveal Answer: "The correct answer is..." -> (1s pause) -> Answer Name
+ * ✔ Final Question: "This is the final question."
  */
 
 class SpeechSynthesizerService {
@@ -67,12 +72,12 @@ class SpeechSynthesizerService {
       utterance.pitch = pitch;
       utterance.volume = 1.0;
 
-      utterance.onend = () => resolve();
-      utterance.onerror = () => resolve();
-
-      // Fallback timeout in case speech engine stalls
       const timeout = setTimeout(() => resolve(), 4500);
       utterance.onend = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+      utterance.onerror = () => {
         clearTimeout(timeout);
         resolve();
       };
@@ -86,43 +91,36 @@ class SpeechSynthesizerService {
   }
 
   /**
-   * AI Host Home Welcome
+   * ✔ Home Page Welcome
    */
   public speakHomeIntro() {
     this.speak('Welcome to the Freshers Challenge Arena.');
   }
 
   /**
-   * AI Host Logo Challenge Start
+   * ✔ Logo Challenge Start
    */
   public speakLogoIntro() {
     this.speak('Can you identify this logo?');
   }
 
   /**
-   * AI Host Movie Challenge Full Sequence
-   * 1. "Welcome to the Movie Challenge."
-   * 2. "Watch the clip carefully and guess the movie."
+   * ✔ Movie Challenge Intro
    */
   public async speakMovieIntroSequence(): Promise<void> {
-    await this.speakAsync('Welcome to the Movie Challenge.');
-    await new Promise((res) => setTimeout(res, 300));
     await this.speakAsync('Watch the clip carefully and guess the movie.');
   }
 
   /**
-   * AI Host Next Question
+   * ✔ Final Question Announcement
    */
-  public speakNextQuestion(isFinal: boolean = false) {
-    if (isFinal) {
-      this.speak('This is the final question. Give it your best.');
-    } else {
-      this.speak("Let's move to the next challenge.");
-    }
+  public speakFinalQuestion() {
+    this.speak('This is the final question.');
   }
 
   /**
-   * AI Host Dramatic Answer Reveal
+   * ✔ Dramatic Answer Reveal
+   * Speaks: "The correct answer is..." -> (1s pause) -> Answer Name!
    */
   public speakReveal(answerText: string) {
     if (!this.isEnabled || !this.synth) return;

@@ -57,7 +57,9 @@ export function RightControlPanel({
     if (isDisabled) return;
     audioManager.playGameShowTransition();
     onNext();
-    speechSynthesizer.speakNextQuestion(isLastQuestion);
+    if (isLastQuestion) {
+      speechSynthesizer.speakFinalQuestion();
+    }
   };
 
   const handleReplayClick = () => {
