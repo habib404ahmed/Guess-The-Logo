@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { speechSynthesizer } from '@/utils/speechSynthesizer';
 
 /**
  * HeroTitle — Million Dollar Stage Hero Header
@@ -6,7 +7,7 @@ import { motion } from 'framer-motion';
  * Modeled after Apple Keynotes, PlayStation Showcases & Netflix intros:
  * - Letter-by-letter typewriter entrance
  * - Blue -> Purple -> White gradient with 8-second periodic light sweep
- * - Pulsing cyan glassmorphism orientation badge
+ * - Pulsing cyan glassmorphism orientation badge (Clickable to trigger AI Host Welcome)
  */
 
 const titleText = "Freshers Challenge Arena";
@@ -35,16 +36,23 @@ export function HeroTitle() {
     },
   };
 
+  const handleBadgeClick = () => {
+    speechSynthesizer.speakHomeIntro();
+  };
+
   return (
     <div className="flex flex-col items-center gap-3.5 select-none relative">
-      {/* ── 1. Glass Eyebrow Badge ── */}
+      {/* ── 1. Glass Eyebrow Badge (Click to hear AI Host Intro) ── */}
       <motion.div
         initial={{ opacity: 0, y: -16, scale: 0.9 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        onClick={handleBadgeClick}
+        className="cursor-pointer group"
+        title="Click to hear AI Host Welcome"
       >
         <span
-          className="inline-flex items-center gap-2.5 rounded-full px-5 py-1.5 backdrop-blur-2xl relative overflow-hidden"
+          className="inline-flex items-center gap-2.5 rounded-full px-5 py-1.5 backdrop-blur-2xl relative overflow-hidden transition-all group-hover:scale-105 group-hover:border-purple-400"
           style={{
             background: 'rgba(255, 255, 255, 0.05)',
             border: '1px solid rgba(168, 85, 247, 0.4)',
@@ -62,7 +70,7 @@ export function HeroTitle() {
 
           <span className="h-2 w-2 rounded-full bg-[#22d3ee] animate-ping" />
           <span className="text-caption text-purple-200 font-extrabold tracking-widest uppercase text-xs">
-            FRESHERS ORIENTATION 2026
+            🎙️ FRESHERS ORIENTATION 2026
           </span>
         </span>
       </motion.div>
@@ -131,7 +139,7 @@ export function HeroTitle() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6, duration: 0.6 }}
-        className="text-label text-center text-[#94a3b8] font-medium max-w-lg leading-relaxed"
+        className="text-[#94a3b8] text-center font-medium max-w-lg leading-relaxed text-xs sm:text-sm"
       >
         Pick a challenge below and put your knowledge to the test.
       </motion.p>
