@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ROUTES } from '@/types';
@@ -20,35 +20,31 @@ import { HomeBackground } from '@/components/home/HomeBackground';
 export function HomePage() {
   const navigate = useNavigate();
   const { isSoundEnabled, toggleSound, isFullscreen, toggleFullscreen } = useTheme();
-  const hasSpokenRef = useRef(false);
 
   useEffect(() => {
-    // Attempt automatic speech intro
+    // 1. Attempt speech intro on mount
     const timer = setTimeout(() => {
-      if (!hasSpokenRef.current) {
-        speechSynthesizer.speakHomeIntro();
-        hasSpokenRef.current = true;
-      }
-    }, 500);
+      speechSynthesizer.speakHomeIntro();
+    }, 400);
 
-    // Fallback: If browser autoplay policy blocked speech on page load, speak on first user click/tap
-    const handleFirstInteraction = () => {
-      speechSynthesizer.loadVoices();
-      if (!hasSpokenRef.current) {
+    // 2. Fallback: Speak on first user interaction gesture to bypass browser autoplay blocks
+    let gestureHandled = false;
+    const handleFirstGesture = () => {
+      if (!gestureHandled) {
+        gestureHandled = true;
         speechSynthesizer.speakHomeIntro();
-        hasSpokenRef.current = true;
       }
     };
 
-    window.addEventListener('click', handleFirstInteraction, { once: true });
-    window.addEventListener('pointerdown', handleFirstInteraction, { once: true });
-    window.addEventListener('keydown', handleFirstInteraction, { once: true });
+    window.addEventListener('click', handleFirstGesture, { once: true });
+    window.addEventListener('pointerdown', handleFirstGesture, { once: true });
+    window.addEventListener('keydown', handleFirstGesture, { once: true });
 
     return () => {
       clearTimeout(timer);
-      window.removeEventListener('click', handleFirstInteraction);
-      window.removeEventListener('pointerdown', handleFirstInteraction);
-      window.removeEventListener('keydown', handleFirstInteraction);
+      window.removeEventListener('click', handleFirstGesture);
+      window.removeEventListener('pointerdown', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
     };
   }, []);
 
