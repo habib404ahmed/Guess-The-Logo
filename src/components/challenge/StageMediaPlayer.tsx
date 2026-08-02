@@ -1,11 +1,11 @@
 /**
- * StageMediaPlayer — Persistent Video/Audio Engine
+ * StageMediaPlayer — High-Performance Ultra-Smooth Video Engine
  * ─────────────────────────────────────────────────────────────────────────────
- * ARCHITECTURE:
- *  • ONE <video> element, persistent across questions
- *  • Direct src prop in JSX for instant native browser loading
- *  • Automatic fallback to audio visualizer if video dimensions are 0 (e.g. mp3/m4a audio clips)
- *  • Clean 2D compositor styling (no hardware transform blackouts)
+ * OPTIMIZATIONS FOR 60FPS SMOOTH PLAYBACK:
+ *  1. ZERO timeupdate React re-renders during playback
+ *  2. ZERO rAF/rVFC loop overhead
+ *  3. Pure CSS compositor rendering (no backdrop-blur GPU fill-rate throttling)
+ *  4. Single persistent <video> element with direct src prop
  */
 
 import {
@@ -39,53 +39,18 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
     const resolvedSrc = videoUrl || mediaSrc || '';
 
     // ── Stable refs ──────────────────────────────────────────────────────────
-    const srcRef          = useRef(resolvedSrc);
-    const prevSrcRef      = useRef('');
-    const autoPlayRef     = useRef(autoPlayOnMount);
-    const t0Ref           = useRef(performance.now());
-    const rafIdRef        = useRef<number | null>(null);
-    const vfcIdRef        = useRef<number | null>(null);
+    const srcRef      = useRef(resolvedSrc);
+    const prevSrcRef  = useRef('');
+    const autoPlayRef = useRef(autoPlayOnMount);
 
     srcRef.current = resolvedSrc;
 
-    // ── Component State ──────────────────────────────────────────────────────
+    // ── Component State (minimal re-renders) ──────────────────────────────────
     const [isLoaded, setIsLoaded]       = useState(false);
     const [isAudioOnly, setIsAudioOnly] = useState(false);
     const [hasError, setHasError]       = useState(false);
 
-    // ── GPU Frame Sync ───────────────────────────────────────────────────────
-    const cancelFrameSync = useCallback(() => {
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
-        rafIdRef.current = null;
-      }
-      const v = videoRef.current;
-      if (v && vfcIdRef.current !== null && 'cancelVideoFrameCallback' in v) {
-        (v as any).cancelVideoFrameCallback(vfcIdRef.current);
-        vfcIdRef.current = null;
-      }
-    }, []);
-
-    const startFrameSync = useCallback(() => {
-      const v = videoRef.current;
-      if (!v) return;
-      const onFrame = () => {
-        if (!v.paused && !v.ended) {
-          if ('requestVideoFrameCallback' in v) {
-            vfcIdRef.current = (v as any).requestVideoFrameCallback(onFrame);
-          } else {
-            rafIdRef.current = requestAnimationFrame(onFrame);
-          }
-        }
-      };
-      if ('requestVideoFrameCallback' in v) {
-        vfcIdRef.current = (v as any).requestVideoFrameCallback(onFrame);
-      } else {
-        rafIdRef.current = requestAnimationFrame(onFrame);
-      }
-    }, []);
-
-    // ── checkVideoState ──────────────────────────────────────────────────────
+    // ── checkVideoState (guarded to prevent duplicate setState calls) ───────
     const checkVideoState = useCallback(() => {
       const v = videoRef.current;
       if (!v) return;
@@ -95,7 +60,6 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
         setIsAudioOnly(false);
         setHasError(false);
       } else if (v.readyState >= 2) {
-        // Media ready to play audio, but has no video dimensions (e.g. mp3, m4a, audio clip)
         setIsLoaded(true);
         setIsAudioOnly(true);
         setHasError(false);
@@ -127,10 +91,8 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
       try {
         await v.play();
         checkVideoState();
-        const dt = (performance.now() - t0Ref.current).toFixed(0);
-        console.log(`[Player] ✅ play() succeeded | startup=${dt}ms | dimensions=${v.videoWidth}x${v.videoHeight}`);
       } catch (err) {
-        console.warn('[Player] ⚠ play() blocked:', err);
+        console.warn('[Player] ⚠ play() blocked by browser policy:', err);
       }
     }, [checkVideoState]);
 
@@ -139,33 +101,16 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
       const v = videoRef.current;
       if (!v) return;
 
-      const handleMetadata = () => {
-        console.log(`[Player] loadedmetadata | ${v.videoWidth}x${v.videoHeight}`);
+      const handleMetadata = () => checkVideoState();
+      const handleCanPlay  = () => {
         checkVideoState();
-      };
-
-      const handleCanPlay = () => {
-        console.log(`[Player] canplay | readyState=${v.readyState} | ${v.videoWidth}x${v.videoHeight}`);
-        checkVideoState();
-
         if (autoPlayRef.current) {
           autoPlayRef.current = false;
           safePlay();
         }
       };
 
-      const handlePlaying = () => {
-        console.log(`[Player] 🚀 playing | ${v.videoWidth}x${v.videoHeight}`);
-        checkVideoState();
-        startFrameSync();
-      };
-
-      const handleTimeUpdate = () => {
-        checkVideoState();
-      };
-
-      const handlePause = () => cancelFrameSync();
-      const handleEnded = () => cancelFrameSync();
+      const handlePlaying = () => checkVideoState();
       const handleError = () => {
         console.error(`[Player] ❌ error:`, v.error);
         setHasError(true);
@@ -175,10 +120,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
       v.addEventListener('loadeddata',     checkVideoState);
       v.addEventListener('canplay',        handleCanPlay);
       v.addEventListener('playing',        handlePlaying);
-      v.addEventListener('timeupdate',     handleTimeUpdate);
       v.addEventListener('resize',         checkVideoState);
-      v.addEventListener('pause',          handlePause);
-      v.addEventListener('ended',          handleEnded);
       v.addEventListener('error',          handleError);
 
       if (v.readyState >= 1) checkVideoState();
@@ -188,12 +130,8 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
         v.removeEventListener('loadeddata',     checkVideoState);
         v.removeEventListener('canplay',        handleCanPlay);
         v.removeEventListener('playing',        handlePlaying);
-        v.removeEventListener('timeupdate',     handleTimeUpdate);
         v.removeEventListener('resize',         checkVideoState);
-        v.removeEventListener('pause',          handlePause);
-        v.removeEventListener('ended',          handleEnded);
         v.removeEventListener('error',          handleError);
-        cancelFrameSync();
       };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -206,7 +144,6 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
 
       prevSrcRef.current  = resolvedSrc;
       autoPlayRef.current = autoPlayOnMount;
-      t0Ref.current       = performance.now();
 
       setIsLoaded(false);
       setIsAudioOnly(false);
@@ -258,13 +195,12 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
-          className="relative w-full overflow-hidden rounded-[24px] backdrop-blur-2xl"
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          className="relative w-full overflow-hidden rounded-[24px] bg-[#090c20]"
           style={{
             minHeight: '280px',
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
             border: '2px solid rgba(168,85,247,0.4)',
-            boxShadow: '0 24px 70px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.25), 0 0 50px rgba(168,85,247,0.25)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(168,85,247,0.2)',
           }}
         >
           {/* HUD Corner Accents */}
@@ -281,7 +217,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
 
           {/* Loading Spinner Overlay */}
           {!isLoaded && !hasError && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 pointer-events-none bg-black/60 backdrop-blur-sm">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 pointer-events-none bg-[#090c20]">
               <div className="h-10 w-10 rounded-full border-4 border-purple-500/30 border-t-purple-400 animate-spin" />
               <span className="text-[11px] font-bold tracking-widest text-purple-300/80 uppercase">
                 Loading media clip...
@@ -291,7 +227,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
 
           {/* Error Overlay */}
           {hasError && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 pointer-events-none bg-black/80">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 pointer-events-none bg-[#090c20]">
               <span className="text-3xl">⚠️</span>
               <span className="text-xs font-bold text-red-400/80 uppercase tracking-widest">
                 Could not load clip
@@ -301,7 +237,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
 
           {/* Audio-Only Soundstage Visualizer Overlay (for audio files & dialogues) */}
           {isAudioOnly && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-20 pointer-events-none bg-[#090b1c]/90 backdrop-blur-md rounded-[24px] p-6">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-20 pointer-events-none bg-[#090c20] rounded-[24px] p-6">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-purple-600 to-pink-500 text-3xl shadow-[0_0_30px_rgba(168,85,247,0.5)] animate-pulse">
                 🎙️
               </div>
@@ -330,8 +266,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
             style={{ minHeight: '280px', maxHeight: '75vh' }}
           >
             {/*
-             * ALWAYS VISIBLE VIDEO ELEMENT
-             * Standard 2D compositor styling (no translateZ transform blackout)
+             * PERSISTENT VIDEO ELEMENT — OPTIMIZED FOR 60FPS
              */}
             <video
               ref={videoRef}
