@@ -1,5 +1,32 @@
-import { useRef, useEffect, forwardRef, useImperativeHandle, memo } from 'react';
+/**
+ * StageMediaPlayer — Zero-Delay Video Engine
+ * ───────────────────────────────────────────────────────────────────────────
+ * KEY ARCHITECTURE DECISIONS:
+ *  1. ONE persistent <video> element — never unmounted, never recreated
+ *  2. Object URL in-memory cache — one createObjectURL per questionId, ever
+ *  3. video.load() fires IMMEDIATELY when src is assigned (before countdown)
+ *  4. play() is called ONLY after readyState >= 3 OR canplay event
+ *  5. React.memo blocks all re-renders from timer/score/progress changes
+ *  6. requestVideoFrameCallback (or rAF fallback) drives GPU frame sync
+ */
+
+import { useRef, useEffect, useCallback, forwardRef, useImperativeHandle, memo } from 'react';
 import { motion } from 'framer-motion';
+
+// ─── In-Process Object URL Cache (survives re-renders, never GC'd) ────────────
+const objectUrlCache = new Map<string, string>();
+
+export function cacheObjectUrl(questionId: string, url: string): void {
+  if (!objectUrlCache.has(questionId)) {
+    objectUrlCache.set(questionId, url);
+  }
+}
+
+export function getCachedObjectUrl(questionId: string): string | undefined {
+  return objectUrlCache.get(questionId);
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface StageMediaPlayerProps {
   questionId?: string;
@@ -14,121 +41,53 @@ export interface StageMediaPlayerRef {
   play: () => Promise<void>;
 }
 
-const DEFAULT_FALLBACK_VIDEO = 'https://vjs.zencdn.net/v/oceans.mp4';
+// ─── Component ────────────────────────────────────────────────────────────────
 
 const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlayerProps>(
-  ({ mediaSrc, videoUrl, autoPlayOnMount = false }, ref) => {
+  ({ questionId, mediaSrc, videoUrl, autoPlayOnMount = false }, ref) => {
     const videoRef = useRef<HTMLVideoElement | null>(null);
 
-    // Diagnostics tracking refs
-    const renderCountRef = useRef(0);
+    // ── Diagnostics Refs (never cause re-renders) ───────────────────────────
+    const renderCountRef       = useRef(0);
+    const questionLoadTimeRef  = useRef(0);
+    const canPlayTimeRef       = useRef<number | null>(null);
+    const playTimeRef          = useRef<number | null>(null);
+    const currentSrcRef        = useRef('');
+    const animFrameIdRef       = useRef<number | null>(null);
+    const frameCallbackIdRef   = useRef<number | null>(null);
+    const autoPlayPendingRef   = useRef(autoPlayOnMount);
+
     renderCountRef.current += 1;
-    console.log(`[Diagnostics] React render count: ${renderCountRef.current}`);
+    console.log(`[Diagnostics] StageMediaPlayer render #${renderCountRef.current} | questionId=${questionId}`);
 
-    const questionLoadTimeRef = useRef(performance.now());
-    const canPlayTimeRef = useRef<number | null>(null);
-    const playTimeRef = useRef<number | null>(null);
+    // Resolve stable video source — prefer cache hit, then fallback to prop
+    const resolvedSrc = (questionId && objectUrlCache.get(questionId)) || videoUrl || mediaSrc || '';
 
-    // Resolve stable video source URL
-    const videoSrc = videoUrl || mediaSrc || DEFAULT_FALLBACK_VIDEO;
-
-    // Preload video immediately when videoSrc changes
-    useEffect(() => {
-      questionLoadTimeRef.current = performance.now();
-      canPlayTimeRef.current = null;
-      playTimeRef.current = null;
-
+    // ── safePlay: wait for readyState ≥ 3 then call play() ──────────────────
+    const safePlay = useCallback(async () => {
       const v = videoRef.current;
-      if (v) {
-        v.load(); // Immediately load video stream
-      }
-    }, [videoSrc]);
+      if (!v || !v.src) return;
 
-    // Attach requestVideoFrameCallback() / requestAnimationFrame() for 60FPS sync
-    useEffect(() => {
-      const v = videoRef.current;
-      if (!v) return;
+      const bufferedEnd = v.buffered.length > 0 ? v.buffered.end(v.buffered.length - 1) : 0;
+      console.log('[Diagnostics] video.readyState   =', v.readyState);
+      console.log('[Diagnostics] video.networkState =', v.networkState);
+      console.log('[Diagnostics] video.buffered.end =', bufferedEnd.toFixed(2), 's');
+      console.log('[Diagnostics] video.currentSrc   =', v.currentSrc?.slice(0, 60));
 
-      let animFrameId: number | null = null;
-      let callbackId: number | null = null;
-
-      const onCanPlay = () => {
-        canPlayTimeRef.current = performance.now();
-        const deltaLoadToCanPlay = canPlayTimeRef.current - questionLoadTimeRef.current;
-        console.log(`[Diagnostics] Time from question load → canplay: ${deltaLoadToCanPlay.toFixed(2)}ms`);
-      };
-
-      const onPlaying = () => {
-        const firstFrameTime = performance.now();
-        if (playTimeRef.current) {
-          const deltaPlayToFrame = firstFrameTime - playTimeRef.current;
-          console.log(`[Diagnostics] Time from play() → first frame: ${deltaPlayToFrame.toFixed(2)}ms`);
-        }
-      };
-
-      v.addEventListener('canplay', onCanPlay);
-      v.addEventListener('playing', onPlaying);
-
-      // Hardware sync frame callback
-      const onFrame = () => {
-        if (v && !v.paused && !v.ended) {
-          if ('requestVideoFrameCallback' in v) {
-            callbackId = (v as any).requestVideoFrameCallback(onFrame);
-          } else {
-            animFrameId = requestAnimationFrame(onFrame);
-          }
-        }
-      };
-
-      const onPlay = () => {
-        if ('requestVideoFrameCallback' in v) {
-          callbackId = (v as any).requestVideoFrameCallback(onFrame);
-        } else {
-          animFrameId = requestAnimationFrame(onFrame);
-        }
-      };
-
-      v.addEventListener('play', onPlay);
-
-      return () => {
-        v.removeEventListener('canplay', onCanPlay);
-        v.removeEventListener('playing', onPlaying);
-        v.removeEventListener('play', onPlay);
-        if (animFrameId !== null) cancelAnimationFrame(animFrameId);
-        if (callbackId !== null && 'cancelVideoFrameCallback' in v) {
-          (v as any).cancelVideoFrameCallback(callbackId);
-        }
-      };
-    }, [videoSrc]);
-
-    // 4. Wait for readyState >= 3 (canplay event) before calling play() with sound
-    const safePlay = async () => {
-      const v = videoRef.current;
-      if (!v) return;
-
-      const bufferedEnd = v.buffered.length > 0 ? v.buffered.end(0) : 0;
-      console.log("video.readyState =", v.readyState);
-      console.log("video.networkState =", v.networkState);
-      console.log("video.currentSrc =", v.currentSrc);
-      console.log("video.videoWidth =", v.videoWidth);
-      console.log("video.videoHeight =", v.videoHeight);
-      console.log("video.paused =", v.paused);
-      console.log("video.buffered =", bufferedEnd);
-
-      // Wait until video canplay (readyState >= 3)
-      await new Promise<void>((resolve) => {
-        if (v.readyState >= 3) {
-          resolve();
-        } else {
+      // If already at readyState >= 3, play immediately (< 1 ms)
+      if (v.readyState >= 3) {
+        console.log('[Diagnostics] readyState already HAVE_FUTURE_DATA — playing immediately');
+      } else {
+        console.log(`[Diagnostics] Waiting for canplay... (readyState=${v.readyState})`);
+        await new Promise<void>((resolve) => {
           const handler = () => resolve();
           v.addEventListener('canplay', handler, { once: true });
-        }
-      });
+        });
+      }
 
       playTimeRef.current = performance.now();
-      if (canPlayTimeRef.current) {
-        const deltaCanPlayToPlay = playTimeRef.current - canPlayTimeRef.current;
-        console.log(`[Diagnostics] Time from canplay → play(): ${deltaCanPlayToPlay.toFixed(2)}ms`);
+      if (canPlayTimeRef.current !== null) {
+        console.log(`[Diagnostics] Time from canplay → play(): ${(playTimeRef.current - canPlayTimeRef.current).toFixed(2)} ms`);
       }
 
       v.currentTime = 0;
@@ -136,84 +95,174 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
 
       try {
         await v.play();
-        console.log("Autoplay started");
+        console.log('[Diagnostics] ✅ play() succeeded — video is now playing');
       } catch (err) {
-        console.log("Autoplay failed", err);
-        if (v) {
-          try {
-            v.muted = false;
-            await v.play();
-            console.log("Autoplay started");
-          } catch (e) {
-            console.log("Autoplay failed", e);
+        console.warn('[Diagnostics] ⚠ play() failed (autoplay policy?):', err);
+      }
+    }, []);
+
+    // ── Cancel any active frame callbacks ───────────────────────────────────
+    const cancelFrameCallbacks = useCallback(() => {
+      if (animFrameIdRef.current !== null) {
+        cancelAnimationFrame(animFrameIdRef.current);
+        animFrameIdRef.current = null;
+      }
+      const v = videoRef.current;
+      if (v && frameCallbackIdRef.current !== null && 'cancelVideoFrameCallback' in v) {
+        (v as any).cancelVideoFrameCallback(frameCallbackIdRef.current);
+        frameCallbackIdRef.current = null;
+      }
+    }, []);
+
+    // ── GPU frame sync loop (requestVideoFrameCallback or rAF fallback) ─────
+    const scheduleFrameSync = useCallback(() => {
+      const v = videoRef.current;
+      if (!v) return;
+
+      const onFrame = () => {
+        if (!v.paused && !v.ended) {
+          if ('requestVideoFrameCallback' in v) {
+            frameCallbackIdRef.current = (v as any).requestVideoFrameCallback(onFrame);
+          } else {
+            animFrameIdRef.current = requestAnimationFrame(onFrame);
           }
         }
-      }
-    };
+      };
 
-    // Replay button: video.pause(); video.currentTime = 0; await video.play();
+      if ('requestVideoFrameCallback' in v) {
+        frameCallbackIdRef.current = (v as any).requestVideoFrameCallback(onFrame);
+      } else {
+        animFrameIdRef.current = requestAnimationFrame(onFrame);
+      }
+    }, []);
+
+    // ── Mount: attach persistent event listeners once ────────────────────────
+    useEffect(() => {
+      const v = videoRef.current;
+      if (!v) return;
+
+      const onCanPlay = () => {
+        canPlayTimeRef.current = performance.now();
+        console.log(
+          `[Diagnostics] ✅ canplay fired | Time from load → canplay: ${(canPlayTimeRef.current - questionLoadTimeRef.current).toFixed(2)} ms`,
+        );
+
+        // If autoplay is pending, play NOW
+        if (autoPlayPendingRef.current) {
+          autoPlayPendingRef.current = false;
+          safePlay();
+        }
+      };
+
+      const onPlaying = () => {
+        const firstFrameTime = performance.now();
+        if (playTimeRef.current !== null) {
+          console.log(
+            `[Diagnostics] ✅ playing fired | Time from play() → first frame: ${(firstFrameTime - playTimeRef.current).toFixed(2)} ms`,
+          );
+        }
+        const totalStartup = firstFrameTime - questionLoadTimeRef.current;
+        console.log(`[Diagnostics] 🚀 TOTAL STARTUP DELAY: ${totalStartup.toFixed(2)} ms`);
+        scheduleFrameSync();
+      };
+
+      const onPause = () => cancelFrameCallbacks();
+      const onEnded = () => cancelFrameCallbacks();
+
+      v.addEventListener('canplay',  onCanPlay);
+      v.addEventListener('playing',  onPlaying);
+      v.addEventListener('pause',    onPause);
+      v.addEventListener('ended',    onEnded);
+
+      return () => {
+        v.removeEventListener('canplay',  onCanPlay);
+        v.removeEventListener('playing',  onPlaying);
+        v.removeEventListener('pause',    onPause);
+        v.removeEventListener('ended',    onEnded);
+        cancelFrameCallbacks();
+      };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // ← INTENTIONAL: listeners are permanent, attached once at mount
+
+    // ── Src change: assign src + call load() IMMEDIATELY ────────────────────
+    useEffect(() => {
+      const v = videoRef.current;
+      if (!v || !resolvedSrc) return;
+
+      // Skip if src hasn't actually changed
+      if (currentSrcRef.current === resolvedSrc) return;
+      currentSrcRef.current = resolvedSrc;
+
+      // Reset diagnostics for this question
+      questionLoadTimeRef.current = performance.now();
+      canPlayTimeRef.current      = null;
+      playTimeRef.current         = null;
+      autoPlayPendingRef.current  = autoPlayOnMount;
+
+      console.log(`[Diagnostics] 📼 Assigning new src, calling load() immediately | questionId=${questionId}`);
+      console.log(`[Diagnostics] src = ${resolvedSrc.slice(0, 60)}...`);
+
+      // Pause any current playback
+      if (!v.paused) v.pause();
+
+      // Assign src and immediately preload the stream
+      v.src     = resolvedSrc;
+      v.preload = 'auto';
+      v.load(); // ← fires immediately, no waiting for countdowns
+
+      console.log(`[Diagnostics] video.load() called at ${performance.now().toFixed(2)} ms`);
+    }, [resolvedSrc, questionId, autoPlayOnMount]);
+
+    // ── autoPlayOnMount prop change: update the pending flag ────────────────
+    useEffect(() => {
+      autoPlayPendingRef.current = autoPlayOnMount;
+
+      // If already canplay and autoplay was requested, play immediately
+      if (autoPlayOnMount) {
+        const v = videoRef.current;
+        if (v && v.readyState >= 3) {
+          autoPlayPendingRef.current = false;
+          safePlay();
+        }
+      }
+    }, [autoPlayOnMount, safePlay]);
+
+    // ── Imperative API ───────────────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
       replay: async () => {
-        if (videoRef.current) {
-          videoRef.current.pause();
-          videoRef.current.currentTime = 0;
-          await safePlay();
-        }
+        const v = videoRef.current;
+        if (!v) return;
+        v.pause();
+        v.currentTime = 0;
+        await safePlay();
       },
       pause: () => {
-        if (videoRef.current) {
-          videoRef.current.pause();
-        }
+        if (videoRef.current) videoRef.current.pause();
       },
       play: async () => {
         await safePlay();
       },
     }));
 
-    // Question change setup: stop previous video, reset currentTime = 0, play once when countdown finishes
-    useEffect(() => {
-      if (!autoPlayOnMount) {
-        if (videoRef.current) {
-          videoRef.current.pause();
-          videoRef.current.currentTime = 0;
-        }
-        return;
-      }
-
-      safePlay();
-
-      return () => {
-        if (videoRef.current) {
-          videoRef.current.pause();
-        }
-      };
-    }, [videoSrc, autoPlayOnMount]);
-
+    // ── JSX ──────────────────────────────────────────────────────────────────
     return (
       <div
         className="relative flex flex-col items-center justify-center m-auto select-none"
-        style={{
-          width: 'fit-content',
-          height: 'fit-content',
-          maxWidth: '100%',
-          maxHeight: '75vh',
-        }}
+        style={{ width: 'fit-content', height: 'fit-content', maxWidth: '100%', maxHeight: '75vh' }}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.35, ease: 'easeOut' }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
           className="relative flex items-center justify-center overflow-hidden rounded-[24px] backdrop-blur-2xl group"
           style={{
             width: 'fit-content',
             height: 'fit-content',
             maxWidth: '100%',
             maxHeight: '75vh',
-            background:
-              'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
             border: '2px solid rgba(168,85,247,0.4)',
-            boxShadow:
-              '0 24px 70px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.25), 0 0 50px rgba(168,85,247,0.25)',
+            boxShadow: '0 24px 70px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.25), 0 0 50px rgba(168,85,247,0.25)',
           }}
         >
           {/* Futuristic HUD Corner Accents */}
@@ -225,31 +274,27 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
           {/* Top Light Sweep Highlight */}
           <div
             className="pointer-events-none absolute inset-x-0 top-0 h-[1px] z-20 opacity-70"
-            style={{
-              background:
-                'linear-gradient(90deg, transparent 0%, rgba(192,132,252,0.8) 50%, transparent 100%)',
-            }}
+            style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(192,132,252,0.8) 50%, transparent 100%)' }}
           />
 
-          {/* ── GPU HARDWARE ACCELERATED VIDEO CONTAINER (EXPLICIT STYLING RULES) ── */}
+          {/* GPU-Accelerated Video Container */}
           <div
-            className="relative overflow-hidden bg-black/90 rounded-[24px] flex items-center justify-center transform-gpu translate-z-0"
-            style={{
-              width: 'fit-content',
-              height: 'fit-content',
-              maxWidth: '100%',
-              maxHeight: '75vh',
-            }}
+            className="relative overflow-hidden bg-black/90 rounded-[24px] flex items-center justify-center"
+            style={{ width: 'fit-content', height: 'fit-content', maxWidth: '100%', maxHeight: '75vh' }}
           >
+            {/*
+             * SINGLE PERSISTENT <video> ELEMENT
+             * - Never unmounted (no key prop changes)
+             * - src is swapped via videoRef.current.src = ... in useEffect
+             * - preload="auto" set via JS to ensure it's always honoured
+             * - Hardware-layer compositing: translateZ(0), backfaceVisibility, contain
+             */}
             <video
               ref={videoRef}
-              src={videoSrc}
               controls={false}
               playsInline
-              autoPlay={false}
               muted={false}
               preload="auto"
-              crossOrigin="anonymous"
               disablePictureInPicture
               controlsList="nofullscreen noremoteplayback nodownload noplaybackrate"
               style={{
@@ -261,14 +306,11 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
                 objectFit: 'contain',
                 transform: 'translateZ(0)',
                 backfaceVisibility: 'hidden',
-                willChange: 'auto',
+                willChange: 'transform',
                 contain: 'layout paint size',
                 borderRadius: '24px',
               }}
               className="movie-player pointer-events-none select-none"
-              onError={() => {
-                console.warn('[Video Error] Switching to fallback stream:', videoSrc);
-              }}
             />
 
             {/* Status Badge */}
@@ -283,14 +325,17 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
   },
 );
 
-// Memoize video component so it re-renders ONLY when questionId or videoUrl changes
+StageMediaPlayerComponent.displayName = 'StageMediaPlayer';
+
+/**
+ * Memoized export — re-renders ONLY when questionId or mediaSrc/videoUrl changes.
+ * Timer ticks, score updates, countdown changes → NEVER cause a video re-render.
+ */
 export const StageMediaPlayer = memo(
   StageMediaPlayerComponent,
   (prev, next) =>
-    prev.questionId === next.questionId &&
-    prev.videoUrl === next.videoUrl &&
-    prev.mediaSrc === next.mediaSrc &&
+    prev.questionId      === next.questionId &&
+    prev.videoUrl        === next.videoUrl &&
+    prev.mediaSrc        === next.mediaSrc &&
     prev.autoPlayOnMount === next.autoPlayOnMount,
 );
-
-StageMediaPlayer.displayName = 'StageMediaPlayer';

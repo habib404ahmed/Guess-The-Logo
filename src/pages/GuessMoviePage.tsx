@@ -60,6 +60,11 @@ export function GuessMoviePage() {
     return questions[index];
   }, [questions, index]);
 
+  // Memoize next question for background video preloading (<100ms instant startup)
+  const nextQuestion = useMemo(() => {
+    return index + 1 < questions.length ? questions[index + 1] : null;
+  }, [questions, index]);
+
   const dialogue = currentQuestion ? movieDialogues[currentQuestion.id] : null;
   const allLines = useMemo(() => {
     return dialogue?.lines ?? [
@@ -224,6 +229,20 @@ export function GuessMoviePage() {
         <StageCountdownModal
           speakAiIntro={index === 0}
           onComplete={handleCountdownComplete}
+        />
+      )}
+
+      {/* 🚀 BACKGROUND PRELOADER FOR NEXT QUESTION VIDEO (<100ms INSTANT PLAYBACK) */}
+      {nextQuestion && (
+        <video
+          key={`preload-${nextQuestion.id}`}
+          src={nextQuestion.dialogueSrc || nextQuestion.videoUrl}
+          preload="auto"
+          className="hidden"
+          aria-hidden="true"
+          onLoadedData={() => {
+            console.log(`[Background Preloader] Next question (${nextQuestion.id}) pre-buffered into browser memory!`);
+          }}
         />
       )}
 
