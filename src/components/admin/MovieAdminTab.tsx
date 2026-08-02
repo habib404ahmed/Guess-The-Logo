@@ -158,7 +158,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
     onUpdateMovies(updated);
     saveStoredMovies(updated);
     updateSaveTimestamp();
-    showToast(`✅ ${newQuestions.length} Movie Clips Imported & Set to Question 1!`);
+    showToast(`✅ ${newQuestions.length} Movie Clip${newQuestions.length === 1 ? '' : 's'} Imported & Set to Question 1!`);
 
     if (folderInputRef.current) folderInputRef.current.value = '';
   };
@@ -282,7 +282,11 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
     showToast('Saving video clips & updating IndexedDB...');
     await saveStoredMoviesAsync(movies);
     updateSaveTimestamp();
-    showToast('Saved all 6 video clips & metadata successfully!');
+
+    const totalClips = movies.length;
+    const clipWord = totalClips === 1 ? 'video clip' : 'video clips';
+    const prefix = totalClips === 1 ? 'Saved' : 'Saved all';
+    showToast(`${prefix} ${totalClips} ${clipWord} & metadata successfully!`);
   };
 
   // ── Delete ──
