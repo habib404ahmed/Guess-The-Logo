@@ -24,59 +24,34 @@ const ACCENT: Record<AccentColor, {
   badgeBorder: string;
   badgeText: string;
   buttonBg: string;
-  buttonBorder: string;
   buttonGlow: string;
-  borderHover: string;
-  iconBg: string;
-  iconGlow: string;
-  cornerColor: string;
+  borderStroke: string;
+  numberBg: string;
+  graphicSrc: string;
 }> = {
   primary: {
-    glow: 'rgba(0,243,255,0.45)',
-    badge: 'rgba(0,243,255,0.18)',
-    badgeBorder: 'rgba(0,243,255,0.45)',
-    badgeText: '#00f3ff',
-    buttonBg: 'linear-gradient(135deg, #00f3ff 0%, #3b82f6 50%, #1d4ed8 100%)',
-    buttonBorder: 'rgba(0,243,255,0.7)',
-    buttonGlow: 'rgba(0,243,255,0.55)',
-    borderHover: 'rgba(0,243,255,0.65)',
-    iconBg: 'rgba(0,243,255,0.18)',
-    iconGlow: '#00f3ff',
-    cornerColor: '#00f3ff',
+    glow: 'rgba(0, 162, 255, 0.45)',
+    badge: 'rgba(0, 162, 255, 0.18)',
+    badgeBorder: 'rgba(0, 162, 255, 0.5)',
+    badgeText: '#38bdf8',
+    buttonBg: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)',
+    buttonGlow: 'rgba(0, 162, 255, 0.65)',
+    borderStroke: 'rgba(0, 162, 255, 0.75)',
+    numberBg: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)',
+    graphicSrc: '/images/logo-challenge-neon.png',
   },
   secondary: {
-    glow: 'rgba(255,0,127,0.45)',
-    badge: 'rgba(255,0,127,0.18)',
-    badgeBorder: 'rgba(255,0,127,0.45)',
-    badgeText: '#ff007f',
-    buttonBg: 'linear-gradient(135deg, #ff007f 0%, #a855f7 50%, #9333ea 100%)',
-    buttonBorder: 'rgba(255,0,127,0.7)',
-    buttonGlow: 'rgba(255,0,127,0.55)',
-    borderHover: 'rgba(255,0,127,0.65)',
-    iconBg: 'rgba(255,0,127,0.18)',
-    iconGlow: '#ff007f',
-    cornerColor: '#ff007f',
+    glow: 'rgba(168, 85, 247, 0.45)',
+    badge: 'rgba(168, 85, 247, 0.18)',
+    badgeBorder: 'rgba(168, 85, 247, 0.5)',
+    badgeText: '#c084fc',
+    buttonBg: 'linear-gradient(135deg, #e040fb 0%, #7c4dff 100%)',
+    buttonGlow: 'rgba(168, 85, 247, 0.65)',
+    borderStroke: 'rgba(168, 85, 247, 0.75)',
+    numberBg: 'linear-gradient(135deg, #e040fb 0%, #7c4dff 100%)',
+    graphicSrc: '/images/movie-challenge-neon.png',
   },
 };
-
-function LogoIcon() {
-  return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-      <path d="M20 20L17 17" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-      <path d="M8 11h6M11 8v6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function MovieIcon() {
-  return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2" y="3" width="20" height="14" rx="2.5" stroke="currentColor" strokeWidth="2.2" />
-      <path d="M2 8h20M8 3v5M16 3v5M8 17v4M16 17v4M12 17v4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 function ArrowRightIcon() {
   return (
@@ -90,8 +65,6 @@ export function ChallengeCard({
   id,
   title,
   description,
-  imageSrc,
-  imageAlt,
   accentColor,
   questionCount,
   difficulty,
@@ -99,7 +72,6 @@ export function ChallengeCard({
   index,
 }: ChallengeCardProps) {
   const a = ACCENT[accentColor];
-  const Icon = accentColor === 'primary' ? LogoIcon : MovieIcon;
 
   // 3D Parallax Tilt State
   const [rotX, setRotX] = useState(0);
@@ -112,8 +84,8 @@ export function ChallengeCard({
     const centerX = card.width / 2;
     const centerY = card.height / 2;
 
-    const rY = ((x - centerX) / centerX) * 8; // Max 8 deg
-    const rX = ((centerY - y) / centerY) * 8;
+    const rY = ((x - centerX) / centerX) * 7;
+    const rX = ((centerY - y) / centerY) * 7;
 
     setRotX(rX);
     setRotY(rY);
@@ -129,6 +101,8 @@ export function ChallengeCard({
     onClick();
   };
 
+  const formattedIndex = (index + 1).toString().padStart(2, '0');
+
   return (
     <motion.article
       id={id}
@@ -142,13 +116,13 @@ export function ChallengeCard({
       tabIndex={0}
       aria-label={`Start ${title} challenge`}
       onKeyDown={(e) => e.key === 'Enter' && handleClick()}
-      className="challenge-card group relative cursor-pointer overflow-hidden rounded-3xl outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 select-none"
+      className="challenge-card group relative cursor-pointer overflow-hidden rounded-3xl outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 select-none flex flex-col justify-between"
       style={{
-        background: 'linear-gradient(135deg, rgba(15,23,42,0.85) 0%, rgba(6,9,24,0.92) 100%)',
-        border: `1.5px solid ${a.badgeBorder}`,
-        backdropFilter: 'blur(28px)',
-        WebkitBackdropFilter: 'blur(28px)',
-        boxShadow: `0 20px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.25), 0 0 35px ${a.glow}`,
+        background: 'linear-gradient(145deg, rgba(12, 16, 38, 0.85) 0%, rgba(6, 8, 22, 0.92) 100%)',
+        border: `1.8px solid ${a.borderStroke}`,
+        backdropFilter: 'blur(30px)',
+        WebkitBackdropFilter: 'blur(30px)',
+        boxShadow: `0 20px 60px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.25), 0 0 35px ${a.glow}`,
         transformStyle: 'preserve-3d',
       }}
       animate={{
@@ -157,153 +131,118 @@ export function ChallengeCard({
       }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
       whileHover={{
-        scale: 1.04,
+        scale: 1.03,
         transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
       }}
       whileTap={{ scale: 0.98 }}
     >
-      {/* Cybernetic HUD Corner Brackets */}
-      <div
-        className="pointer-events-none absolute top-3 left-3 h-4 w-4 border-t-2 border-l-2 z-20 transition-all duration-300"
-        style={{ borderColor: a.cornerColor }}
-      />
-      <div
-        className="pointer-events-none absolute top-3 right-3 h-4 w-4 border-t-2 border-r-2 z-20 transition-all duration-300"
-        style={{ borderColor: a.cornerColor }}
-      />
-      <div
-        className="pointer-events-none absolute bottom-3 left-3 h-4 w-4 border-b-2 border-l-2 z-20 transition-all duration-300"
-        style={{ borderColor: a.cornerColor }}
-      />
-      <div
-        className="pointer-events-none absolute bottom-3 right-3 h-4 w-4 border-b-2 border-r-2 z-20 transition-all duration-300"
-        style={{ borderColor: a.cornerColor }}
-      />
+      {/* HUD Chamfered Corner Markers */}
+      <div className="pointer-events-none absolute top-3 left-3 h-3.5 w-3.5 border-t-2 border-l-2 z-20" style={{ borderColor: a.borderStroke }} />
+      <div className="pointer-events-none absolute top-3 right-3 h-3.5 w-3.5 border-t-2 border-r-2 z-20" style={{ borderColor: a.borderStroke }} />
+      <div className="pointer-events-none absolute bottom-3 left-3 h-3.5 w-3.5 border-b-2 border-l-2 z-20" style={{ borderColor: a.borderStroke }} />
+      <div className="pointer-events-none absolute bottom-3 right-3 h-3.5 w-3.5 border-b-2 border-r-2 z-20" style={{ borderColor: a.borderStroke }} />
 
-      {/* Glow Ambient Aura on Hover */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
-        style={{
-          background: `radial-gradient(ellipse at center top, ${a.glow} 0%, transparent 70%)`,
-        }}
-      />
-
-      {/* Game Image Banner with Parallax Zoom */}
-      <div className="relative overflow-hidden" style={{ aspectRatio: '16/6' }}>
-        <img
-          src={imageSrc}
-          alt={imageAlt}
-          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-          loading="eager"
-          draggable={false}
-        />
-        {/* Bottom fade gradient */}
+      {/* Top Banner & Graphic Section */}
+      <div className="relative p-5 pb-0">
+        {/* Number Circle Badge (Top Left 01 / 02) */}
         <div
-          className="absolute inset-x-0 bottom-0 h-3/4"
+          className="absolute left-8 top-8 z-30 flex h-10 w-10 items-center justify-center rounded-full text-sm font-black text-white shadow-2xl border border-white/40"
           style={{
-            background: 'linear-gradient(to top, rgba(6,9,24,0.98) 0%, transparent 100%)',
-          }}
-        />
-        {/* Arcade Level Badge */}
-        <div
-          className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black text-white shadow-2xl backdrop-blur-md"
-          style={{
-            background: 'rgba(0,0,0,0.6)',
-            border: `1px solid ${a.cornerColor}`,
-            boxShadow: `0 0 15px ${a.buttonGlow}`,
+            background: a.numberBg,
+            boxShadow: `0 0 20px ${a.buttonGlow}`,
           }}
         >
-          <span className="h-2 w-2 rounded-full animate-ping" style={{ background: a.cornerColor }} />
-          <span>STAGE #{index + 1}</span>
+          {formattedIndex}
+        </div>
+
+        {/* Center Neon Graphic Box */}
+        <div
+          className="relative overflow-hidden rounded-2xl border border-white/10 flex items-center justify-center"
+          style={{
+            height: '210px',
+            background: 'radial-gradient(ellipse at center, rgba(15, 23, 42, 0.9) 0%, rgba(5, 7, 20, 0.98) 100%)',
+          }}
+        >
+          <img
+            src={a.graphicSrc}
+            alt={title}
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+            loading="eager"
+            draggable={false}
+          />
         </div>
       </div>
 
-      {/* Card Content Body */}
-      <div className="relative flex flex-col gap-4 p-6">
-        {/* Header Row */}
-        <div className="flex items-center gap-4">
-          <div
-            className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl"
+      {/* Card Content Details */}
+      <div className="flex flex-col gap-3 p-6 pt-4">
+        {/* Title */}
+        <h3
+          className="font-black text-white tracking-tight"
+          style={{
+            fontFamily: 'Space Grotesk, Outfit, system-ui, sans-serif',
+            fontSize: '1.65rem',
+            textShadow: `0 0 15px ${a.glow}`,
+          }}
+        >
+          {title}
+        </h3>
+
+        {/* Badges Row */}
+        <div className="flex items-center gap-2.5">
+          <span
+            className="text-caption rounded-full px-3.5 py-1 font-black uppercase text-xs tracking-wider"
             style={{
-              background: a.iconBg,
-              color: a.iconGlow,
-              border: `1.5px solid ${a.badgeBorder}`,
-              boxShadow: `0 0 20px ${a.glow}`,
+              background: a.badge,
+              border: `1px solid ${a.badgeBorder}`,
+              color: a.badgeText,
             }}
           >
-            <Icon />
-          </div>
-
-          <div className="flex flex-1 flex-col gap-1">
-            <h2
-              className="font-black leading-tight text-white tracking-tight"
-              style={{
-                fontFamily: 'Space Grotesk, Outfit, system-ui, sans-serif',
-                fontSize: 'clamp(1.3rem, 2.4vw, 1.65rem)',
-                textShadow: `0 0 20px ${a.glow}`,
-              }}
-            >
-              {title}
-            </h2>
-            <div className="flex flex-wrap gap-2">
-              <span
-                className="text-caption rounded-full px-3 py-0.5 font-extrabold uppercase text-xs"
-                style={{
-                  background: a.badge,
-                  border: `1px solid ${a.badgeBorder}`,
-                  color: a.badgeText,
-                  textShadow: `0 0 10px ${a.glow}`,
-                }}
-              >
-                {questionCount} QUESTIONS
-              </span>
-              <span
-                className="text-caption rounded-full px-3 py-0.5 font-extrabold uppercase text-xs"
-                style={{
-                  background: 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.18)',
-                  color: '#e2e8f0',
-                }}
-              >
-                🏆 100 PTS / QUEST
-              </span>
-            </div>
-          </div>
+            {questionCount} QUESTIONS
+          </span>
+          <span
+            className="text-caption rounded-full px-3.5 py-1 font-black uppercase text-xs tracking-wider"
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              color: '#94a3b8',
+            }}
+          >
+            {difficulty}
+          </span>
         </div>
 
         {/* Description */}
-        <p className="text-label leading-relaxed text-[#cbd5e1] font-semibold text-sm">
+        <p className="text-sm font-medium text-[#94a3b8] leading-relaxed">
           {description}
         </p>
 
-        {/* Esports Action Button */}
+        {/* High-Tech Bevelled Angled 3D Button */}
         <motion.button
           id={`${id}-cta`}
-          className="btn btn-xl mt-1 w-full shimmer font-black tracking-widest text-base"
+          className="relative mt-2 w-full flex items-center justify-center gap-2 font-black text-white uppercase tracking-wider transition-all"
           style={{
-            height: '56px',
+            height: '52px',
             background: a.buttonBg,
-            border: `1.5px solid ${a.buttonBorder}`,
-            color: '#ffffff',
+            clipPath: 'polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px)',
             boxShadow: `0 8px 30px ${a.buttonGlow}`,
-            textShadow: '0 2px 8px rgba(0,0,0,0.6)',
+            fontSize: '15px',
           }}
-          whileHover={{ boxShadow: `0 12px 40px ${a.buttonGlow}`, scale: 1.01 }}
+          whileHover={{ scale: 1.02, filter: 'brightness(1.15)' }}
           whileTap={{ scale: 0.98 }}
           onClick={(e) => {
             e.stopPropagation();
             handleClick();
           }}
         >
-          <span>🎮 ENTER ARENA</span>
+          <span>START CHALLENGE</span>
           <ArrowRightIcon />
         </motion.button>
       </div>
 
-      {/* Hover High Voltage Neon Border */}
+      {/* Hover Neon Border Overlay */}
       <div
         className="pointer-events-none absolute inset-0 rounded-3xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        style={{ boxShadow: `inset 0 0 0 2px ${a.borderHover}, 0 0 60px ${a.glow}` }}
+        style={{ boxShadow: `inset 0 0 0 2px ${a.borderStroke}, 0 0 60px ${a.glow}` }}
       />
     </motion.article>
   );
