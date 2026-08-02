@@ -2,7 +2,12 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { movieDialogues } from '@/data/movieQuestions';
 import type { MovieQuestion } from '@/types';
 import { shuffle } from '@/utils';
-import { getStoredMovies, getStoredMoviesAsync, getStoredSettings } from '@/utils/storage';
+import {
+  getStoredMovies,
+  getStoredMoviesAsync,
+  getStoredSettings,
+  type ExtendedMovieQuestion,
+} from '@/utils/storage';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useSound } from '@/hooks/useSound';
 import {
@@ -57,23 +62,19 @@ export function GuessMoviePage() {
 
   const questionTime = settings.questionTimer || 25;
 
-  // 🔍 Complete Data Flow Lifecycle Console Trace
+  // 🔍 Exact Console Logs as Requested
   useEffect(() => {
     if (currentQuestion) {
-      const activeVideoUrl = currentQuestion.videoUrl || currentQuestion.dialogueSrc;
-      console.log('🔍 [MOVIE DATA FLOW TRACE]', {
-        '1. Step': `Current Question #${index + 1} Loaded on Stage`,
-        '2. Movie ID': currentQuestion.id,
-        '3. Video Filename': currentQuestion.fileName || `${currentQuestion.movieTitle}.mp4`,
-        '4. Video Source': activeVideoUrl,
-        '5. Blob': (currentQuestion as unknown as Record<string, unknown>).videoBlob || (currentQuestion as unknown as Record<string, unknown>)._rawFile || 'Retrieved from IndexedDB',
-        '6. Object URL': activeVideoUrl,
-        '7. IndexedDB Key': `FresherArenaMediaDB_v3 -> media_blobs -> ${currentQuestion.id}`,
-        '8. localStorage Data': localStorage.getItem('fresher_arena_movies')?.slice(0, 100) + '...',
-        '9. Current Movie Object': currentQuestion,
-      });
+      const q = currentQuestion as ExtendedMovieQuestion;
+      console.log("Current Movie", currentQuestion);
+      console.log("Video URL:", q.videoUrl || q.dialogueSrc);
+      console.log("Video Blob:", q.videoBlob || q._rawFile);
+      console.log("Video File:", q.videoFile || q._rawFile);
+      console.log("Video Path:", q.videoPath || q.fileName || q.dialogueSrc);
+      console.log("Movie List:", questions);
+      console.log("Movie Count:", questions.length);
     }
-  }, [currentQuestion, index]);
+  }, [currentQuestion, questions]);
 
   // ── Timer ──────────────────────────────────────────────────────────────────
   const { seconds, start, reset } = useCountdown({
