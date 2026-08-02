@@ -60,6 +60,9 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [progress, setProgress]       = useState(0);
   const [toastMessage, setToastMessage] = useState<{ text: string; isError?: boolean } | null>(null);
+  const [lastSavedTime, setLastSavedTime] = useState<string>(() =>
+    new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  );
 
   const folderInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef   = useRef<HTMLInputElement>(null);
@@ -68,6 +71,21 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
     setToastMessage({ text: msg, isError });
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  const updateSaveTimestamp = () => {
+    setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  };
+
+  // Live Statistics Calculations
+  const readyCount = movies.filter(
+    (m) =>
+      m.movieTitle &&
+      m.movieTitle.trim() !== '' &&
+      m.dialogueText &&
+      m.dialogueText.trim() !== '' &&
+      Boolean(m.dialogueSrc),
+  ).length;
+  const incompleteCount = movies.length - readyCount;
 
   // ── Handle Folder Import ──
   const handleFolderImport = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -123,7 +141,8 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
     const updated = [...movies, ...newQuestions];
     onUpdateMovies(updated);
     saveStoredMovies(updated);
-    showToast(`Imported ${newQuestions.length} video/dialogue clips successfully!`);
+    updateSaveTimestamp();
+    showToast(`✅ ${newQuestions.length} Movie Clips Imported Successfully`);
 
     if (folderInputRef.current) folderInputRef.current.value = '';
   };
@@ -160,6 +179,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
       const updated = [...movies, newQ];
       onUpdateMovies(updated);
       saveStoredMovies(updated);
+      updateSaveTimestamp();
       showToast(`Added ${movieTitle} clip successfully!`);
     } catch (err) {
       console.error('[Import Error] Failed adding single file:', err);
@@ -184,6 +204,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
     });
     onUpdateMovies(updated);
     saveStoredMovies(updated);
+    updateSaveTimestamp();
   };
 
   // ── Dialogue Text Edit ──
@@ -199,6 +220,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
     });
     onUpdateMovies(updated);
     saveStoredMovies(updated);
+    updateSaveTimestamp();
   };
 
   // ── Optional Hint Edit ──
@@ -214,6 +236,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
     });
     onUpdateMovies(updated);
     saveStoredMovies(updated);
+    updateSaveTimestamp();
   };
 
   // ── Save & Validate All Changes ──
@@ -231,6 +254,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
     }
 
     saveStoredMovies(movies);
+    updateSaveTimestamp();
     showToast('Saved all movie dialogue answers, dialogues & hints successfully!');
   };
 
@@ -240,6 +264,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
     deleteMediaBlob(id); // Delete binary blob from IndexedDB
     onUpdateMovies(updated);
     saveStoredMovies(updated);
+    updateSaveTimestamp();
     showToast('Dialogue clip deleted.');
   };
 
@@ -253,10 +278,14 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
               🎬
             </span>
             <h2
-              className="text-2xl font-black text-white tracking-tight"
+              className="text-2xl font-black text-white tracking-tight flex flex-wrap items-center gap-3"
               style={{ fontFamily: 'Space Grotesk, Orbitron, sans-serif' }}
             >
-              Movie Challenge Workstation
+              <span>Movie Challenge Workstation</span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold text-cyan-300 bg-cyan-500/15 border border-cyan-400/40 shadow-[0_0_15px_rgba(0,240,255,0.3)]">
+                <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+                {movies.length} Clips Loaded
+              </span>
             </h2>
           </div>
           <p className="text-sm font-medium text-[#94a3b8] mt-1">
@@ -313,6 +342,97 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
         </div>
       </div>
 
+      {/* ── LIVE STATISTICS BAR (4 Premium Glass Cards) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 select-none">
+        {/* Card 1: Total Clips */}
+        <motion.div
+          whileHover={{ y: -2, scale: 1.01 }}
+          className="flex items-center justify-between p-5 rounded-[20px] backdrop-blur-xl border border-cyan-500/30"
+          style={{
+            background: 'linear-gradient(135deg, rgba(0, 240, 255, 0.08) 0%, rgba(5, 8, 22, 0.6) 100%)',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+          }}
+        >
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-[#94a3b8] uppercase tracking-wider">
+              Total Clips
+            </span>
+            <span className="text-3xl font-black text-white mt-1">
+              {movies.length}
+            </span>
+          </div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-500/20 border border-cyan-400/40 text-2xl text-cyan-300">
+            🎬
+          </div>
+        </motion.div>
+
+        {/* Card 2: Ready for Challenge */}
+        <motion.div
+          whileHover={{ y: -2, scale: 1.01 }}
+          className="flex items-center justify-between p-5 rounded-[20px] backdrop-blur-xl border border-emerald-500/30"
+          style={{
+            background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(5, 8, 22, 0.6) 100%)',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+          }}
+        >
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-[#94a3b8] uppercase tracking-wider">
+              Ready for Challenge
+            </span>
+            <span className="text-3xl font-black text-emerald-400 mt-1">
+              {readyCount}
+            </span>
+          </div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/20 border border-emerald-400/40 text-2xl text-emerald-300">
+            ✅
+          </div>
+        </motion.div>
+
+        {/* Card 3: Missing Information */}
+        <motion.div
+          whileHover={{ y: -2, scale: 1.01 }}
+          className="flex items-center justify-between p-5 rounded-[20px] backdrop-blur-xl border border-amber-500/30"
+          style={{
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(5, 8, 22, 0.6) 100%)',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+          }}
+        >
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-[#94a3b8] uppercase tracking-wider">
+              Incomplete
+            </span>
+            <span className="text-3xl font-black text-amber-400 mt-1">
+              {incompleteCount}
+            </span>
+          </div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/20 border border-amber-400/40 text-2xl text-amber-300">
+            ⚠️
+          </div>
+        </motion.div>
+
+        {/* Card 4: Last Saved */}
+        <motion.div
+          whileHover={{ y: -2, scale: 1.01 }}
+          className="flex items-center justify-between p-5 rounded-[20px] backdrop-blur-xl border border-purple-500/30"
+          style={{
+            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(5, 8, 22, 0.6) 100%)',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+          }}
+        >
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-[#94a3b8] uppercase tracking-wider">
+              Last Saved
+            </span>
+            <span className="text-xl font-extrabold text-purple-300 mt-2 truncate">
+              {lastSavedTime}
+            </span>
+          </div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-500/20 border border-purple-400/40 text-2xl text-purple-300">
+            💾
+          </div>
+        </motion.div>
+      </div>
+
       {/* ── Import Progress Indicator ── */}
       {isImporting && (
         <div className="rounded-2xl p-5 bg-purple-950/40 border border-purple-500/40 backdrop-blur-xl flex flex-col gap-2.5">
@@ -353,6 +473,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
         onReorder={(newOrder) => {
           onUpdateMovies(newOrder);
           saveStoredMovies(newOrder);
+          updateSaveTimestamp();
         }}
         className="flex flex-col gap-6"
       >
