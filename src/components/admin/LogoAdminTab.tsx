@@ -52,6 +52,7 @@ export function LogoAdminTab({ logos, onUpdateLogos }: LogoAdminTabProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [progress, setProgress]       = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Confirmation Modal State for Deletion
   const [deletingLogo, setDeletingLogo] = useState<LogoQuestion | null>(null);
@@ -61,7 +62,15 @@ export function LogoAdminTab({ logos, onUpdateLogos }: LogoAdminTabProps) {
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    setTimeout(() => setToastMessage(null), 2000); // Auto dismiss after 2s
+  };
+
+  // ── Save All Changes ──
+  const handleSaveAll = () => {
+    const pinned = pinSunstoneLast(logos);
+    saveStoredLogos(pinned);
+    setHasUnsavedChanges(false);
+    showToast('✓ Logo List Saved Successfully');
   };
 
   // ── Handle Folder Import ──
@@ -112,8 +121,8 @@ export function LogoAdminTab({ logos, onUpdateLogos }: LogoAdminTabProps) {
     setIsImporting(false);
     const updated = pinSunstoneLast([...logos, ...newQuestions]);
     onUpdateLogos(updated);
-    saveStoredLogos(updated); // Immediate storage persistence
-    showToast(`Imported Successfully! (${newQuestions.length} logos added)`);
+    setHasUnsavedChanges(true);
+    showToast(`Imported ${newQuestions.length} logos! Click Save Logo List to persist.`);
 
     if (folderInputRef.current) folderInputRef.current.value = '';
   };
@@ -144,8 +153,8 @@ export function LogoAdminTab({ logos, onUpdateLogos }: LogoAdminTabProps) {
 
       const updated = pinSunstoneLast([...logos, newQ]);
       onUpdateLogos(updated);
-      saveStoredLogos(updated); // Immediate storage persistence
-      showToast(`Added ${brandName} successfully!`);
+      setHasUnsavedChanges(true);
+      showToast(`Added ${brandName}! Click Save Logo List to persist.`);
     } catch (err) {
       console.error(err);
     }
@@ -170,7 +179,7 @@ export function LogoAdminTab({ logos, onUpdateLogos }: LogoAdminTabProps) {
 
     const pinned = pinSunstoneLast(updated);
     onUpdateLogos(pinned);
-    saveStoredLogos(pinned); // Immediate storage persistence
+    setHasUnsavedChanges(true);
   };
 
   // ── Initiate Delete (Triggers Confirmation Dialog) ──
@@ -186,27 +195,35 @@ export function LogoAdminTab({ logos, onUpdateLogos }: LogoAdminTabProps) {
     const pinned = pinSunstoneLast(updated);
 
     onUpdateLogos(pinned);
-    saveStoredLogos(pinned); // Immediate permanent deletion in localStorage
+    setHasUnsavedChanges(true);
 
     setDeletingLogo(null);
-    showToast('Logo deleted successfully.');
+    showToast('Logo marked for deletion. Click Save Logo List to persist.');
   };
 
   // ── Reorder ──
   const handleReorder = (newOrder: LogoQuestion[]) => {
     const pinned = pinSunstoneLast(newOrder);
     onUpdateLogos(pinned);
-    saveStoredLogos(pinned); // Immediate storage persistence
+    setHasUnsavedChanges(true);
   };
 
   return (
     <div className="flex flex-col gap-6">
       {/* ── Top Action Bar ── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-white/10 pb-5 select-none">
         <div>
-          <h2 className="text-h3 font-bold text-[#f0f4ff]">Logo Challenge Manager</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-h3 font-bold text-[#f0f4ff]">Logo Challenge Manager</h2>
+            {hasUnsavedChanges && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 border border-amber-500/40 px-3 py-1 text-xs font-black text-amber-300 shadow-md">
+                <span className="h-2 w-2 rounded-full bg-amber-400 animate-ping" />
+                ● Unsaved Changes
+              </span>
+            )}
+          </div>
           <p className="text-body mt-0.5 text-[#94a3b8]">
-            Import an entire folder of logos. Reorder, rename, or delete logos permanently.
+            Import logo folders. Reorder, rename, or delete logos. Click 💾 Save Logo List to persist changes.
           </p>
         </div>
 
@@ -235,20 +252,11 @@ export function LogoAdminTab({ logos, onUpdateLogos }: LogoAdminTabProps) {
           {/* Folder Import Button */}
           <button
             id="import-logo-folder-btn"
-            className="btn btn-primary shadow-lg shadow-blue-500/20"
+            className="btn btn-secondary shadow-lg shadow-purple-500/20"
             onClick={() => folderInputRef.current?.click()}
             disabled={isImporting}
           >
-            <span>Import Logo Folder</span>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <span>📁 Import Logo Folder</span>
           </button>
 
           {/* Single Add Button */}
@@ -258,6 +266,20 @@ export function LogoAdminTab({ logos, onUpdateLogos }: LogoAdminTabProps) {
             disabled={isImporting}
           >
             <span>+ Add Image</span>
+          </button>
+
+          {/* 💾 Save Logo List Button */}
+          <button
+            id="save-logo-list-btn"
+            className={`btn font-black tracking-wider uppercase px-6 py-2.5 rounded-xl shadow-lg transition-all ${
+              hasUnsavedChanges
+                ? 'btn-primary shadow-blue-500/30 cursor-pointer animate-pulse'
+                : 'opacity-40 cursor-not-allowed bg-blue-500/20 border border-blue-500/30 text-slate-400'
+            }`}
+            disabled={!hasUnsavedChanges}
+            onClick={handleSaveAll}
+          >
+            <span>💾 Save Logo List</span>
           </button>
         </div>
       </div>
@@ -284,9 +306,9 @@ export function LogoAdminTab({ logos, onUpdateLogos }: LogoAdminTabProps) {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0 }}
-          className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-3 text-[#4ade80]"
+          className="rounded-2xl border border-emerald-500/40 bg-emerald-500/15 px-6 py-3.5 text-emerald-300 font-extrabold shadow-lg shadow-emerald-500/20 flex items-center gap-2"
         >
-          ✅ {toastMessage}
+          <span>{toastMessage}</span>
         </motion.div>
       )}
 
@@ -392,7 +414,7 @@ export function LogoAdminTab({ logos, onUpdateLogos }: LogoAdminTabProps) {
                   Delete Logo?
                 </h3>
                 <p className="text-sm text-slate-300 leading-relaxed">
-                  Are you sure you want to delete <strong>"{deletingLogo.brandName}"</strong>? This will permanently remove it from storage and update question numbers.
+                  Are you sure you want to delete <strong>"{deletingLogo.brandName}"</strong>?
                 </p>
               </div>
 
