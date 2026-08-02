@@ -25,7 +25,6 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
   ({ mediaSrc, videoUrl, autoPlayOnMount = false }, ref) => {
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [isMuted, setIsMuted] = useState(false);
 
     // Always resolve video source using dialogueSrc || videoUrl
     const activeMediaUrl = videoUrl || mediaSrc || DEFAULT_FALLBACK_VIDEO;
@@ -76,9 +75,10 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
       };
     }, [videoSrc]);
 
-    // Robust play function supporting browser autoplay security policies
+    // Unmuted Audio Playback by Default
     const safePlay = () => {
       if (!videoRef.current) return;
+      videoRef.current.muted = false;
       
       const promise = videoRef.current.play();
       if (promise !== undefined) {
@@ -87,14 +87,11 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
             setIsPlaying(true);
           })
           .catch((err) => {
-            console.warn('[Autoplay Policy] Unmuted play blocked, falling back to muted play:', err);
+            console.warn('[Autoplay] Retrying unmuted playback on user interaction:', err);
+            // Retry playing with audio unmuted on fallback
             if (videoRef.current) {
-              videoRef.current.muted = true;
-              setIsMuted(true);
-              videoRef.current
-                .play()
-                .then(() => setIsPlaying(true))
-                .catch((e) => console.error('[Autoplay Error] Muted play also failed:', e));
+              videoRef.current.muted = false;
+              videoRef.current.play().catch(() => {});
             }
           });
       }
@@ -105,7 +102,6 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
         if (videoRef.current) {
           videoRef.current.currentTime = 0;
           videoRef.current.muted = false;
-          setIsMuted(false);
           safePlay();
         }
       },
@@ -134,18 +130,6 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
         if (videoRef.current) videoRef.current.pause();
       };
     }, [videoSrc, autoPlayOnMount]);
-
-    const handleVideoClick = () => {
-      if (!videoRef.current) return;
-      if (videoRef.current.paused) {
-        videoRef.current.muted = false;
-        setIsMuted(false);
-        safePlay();
-      } else {
-        videoRef.current.pause();
-        setIsPlaying(false);
-      }
-    };
 
     return (
       <div className="relative w-full max-w-2xl select-none">
@@ -178,19 +162,15 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
             }}
           />
 
-          {/* ── GPU HARDWARE ACCELERATED 60FPS SMOOTH HTML5 VIDEO PLAYER ── */}
-          <div
-            className="relative w-full overflow-hidden bg-black/90 rounded-3xl aspect-video flex items-center justify-center cursor-pointer transform-gpu translate-z-0"
-            onClick={handleVideoClick}
-          >
+          {/* ── UNMUTED BY DEFAULT & NO PLAY/PAUSE BUTTON OVERLAY ── */}
+          <div className="relative w-full overflow-hidden bg-black/90 rounded-3xl aspect-video flex items-center justify-center transform-gpu translate-z-0">
             <video
               ref={videoRef}
               src={videoSrc}
-              controls
               playsInline
-              muted={isMuted}
+              muted={false}
+              autoPlay={true}
               preload="auto"
-              controlsList="nodownload noplaybackrate noremoteplayback"
               disablePictureInPicture
               className="h-full w-full object-contain rounded-3xl movie-player transform-gpu translate-z-0"
               onPlay={() => setIsPlaying(true)}
@@ -204,38 +184,9 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
               }}
             />
 
-            {/* Play Overlay Button if Paused */}
-            {!isPlaying && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] transition-all hover:bg-black/20">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-600/80 border border-purple-400/60 text-white text-2xl shadow-xl shadow-purple-500/40 hover:scale-110 transition-transform">
-                  ▶
-                </div>
-                <span className="mt-3 text-xs font-black text-purple-200 tracking-widest uppercase">
-                  Click to Play Video Clip
-                </span>
-              </div>
-            )}
-
-            {/* Muted Warning Badge */}
-            {isMuted && isPlaying && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (videoRef.current) {
-                    videoRef.current.muted = false;
-                    setIsMuted(false);
-                  }
-                }}
-                className="absolute bottom-16 right-4 flex items-center gap-2 rounded-full bg-amber-500/20 border border-amber-500/50 px-4 py-1.5 text-xs font-extrabold text-amber-300 backdrop-blur-md shadow-lg shadow-amber-500/20 z-30 animate-bounce"
-              >
-                🔇 MUTED BY BROWSER — CLICK TO UNMUTE AUDIO
-              </button>
-            )}
-
             {/* Status Indicator */}
             {isPlaying && (
-              <div className="absolute top-4 right-4 flex items-center gap-2 rounded-full bg-purple-500/20 border border-purple-500/50 px-3.5 py-1 text-xs font-bold text-purple-300 backdrop-blur-md shadow-lg shadow-purple-500/20 pointer-events-none">
+              <div className="absolute top-4 right-4 flex items-center gap-2 rounded-full bg-purple-500/20 border border-purple-500/50 px-3.5 py-1 text-xs font-bold text-purple-300 backdrop-blur-md shadow-lg shadow-purple-500/20 pointer-events-none z-30">
                 <span className="h-2 w-2 rounded-full bg-purple-400 animate-ping" />
                 PLAYING VIDEO CLIP
               </div>
