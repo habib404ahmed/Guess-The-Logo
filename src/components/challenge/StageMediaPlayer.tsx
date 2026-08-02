@@ -2,20 +2,11 @@
  * StageMediaPlayer — Persistent Video/Audio Engine
  * ─────────────────────────────────────────────────────────────────────────────
  * ARCHITECTURE:
- *  • ONE <video> element, never unmounted (forwardRef + React.memo)
- *  • src set ONLY imperatively via videoRef — React never touches it after mount
- *  • video.load() called immediately on src change (pre-buffers before countdown)
- *  • play() only after readyState >= HAVE_FUTURE_DATA (3) or canplay event
- *  • Handles both VIDEO files (shows frame) and AUDIO-ONLY files (waveform UI)
- *  • No stale closures — all event handler refs are refreshed via useRef
- *
- * FIXES:
- *  BUG #2 — Audio-only files (mp3, m4a) had videoWidth=0 → 0×0 collapse
- *            Fixed: detect audio-only and show audio-player UI instead
- *  BUG #4 — safePlay had stale closure on resolvedSrc
- *            Fixed: resolvedSrc stored in a ref, always current
- *  BUG #5 — loadedmetadata could fire before listeners attached
- *            Fixed: check readyState on mount and in src-change effect
+ *  • ONE <video> element, persistent across questions
+ *  • src is set BOTH via JSX prop (synchronous initial render) AND imperatively
+ *  • video.load() called immediately on src change
+ *  • play() triggers after readyState >= HAVE_FUTURE_DATA (3) or canplay event
+ *  • Always renders video visible (opacity: 1) whenever src is loaded and playing
  */
 
 import {
@@ -39,34 +30,31 @@ export interface StageMediaPlayerRef {
   play:   () => Promise<void>;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-type LoadState = 'idle' | 'loading' | 'ready' | 'audio-only' | 'error';
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlayerProps>(
   ({ questionId, mediaSrc, videoUrl, autoPlayOnMount = false }, ref) => {
-    const videoRef   = useRef<HTMLVideoElement | null>(null);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
 
-    // ── Stable refs (never cause re-renders) ────────────────────────────────
-    const srcRef            = useRef('');        // always-current src
-    const prevSrcRef        = useRef('');        // previously loaded src (for change detection)
-    const autoPlayRef       = useRef(autoPlayOnMount);
-    const canPlayFiredRef   = useRef(false);
-    const t0Ref             = useRef(performance.now());
-
-    // ── Visible state (minimal — only what must trigger re-render) ──────────
-    const [loadState, setLoadState] = useState<LoadState>('idle');
-
-    // Resolved src — prefer videoUrl over mediaSrc
+    // Resolved src
     const resolvedSrc = videoUrl || mediaSrc || '';
-    srcRef.current    = resolvedSrc; // keep ref in sync (no closure staleness)
 
-    // ─── GPU frame sync ─────────────────────────────────────────────────────
-    const rafIdRef = useRef<number | null>(null);
-    const vfcIdRef = useRef<number | null>(null);
+    // ── Stable refs ──────────────────────────────────────────────────────────
+    const srcRef          = useRef(resolvedSrc);
+    const prevSrcRef      = useRef('');
+    const autoPlayRef     = useRef(autoPlayOnMount);
+    const t0Ref           = useRef(performance.now());
+    const rafIdRef        = useRef<number | null>(null);
+    const vfcIdRef        = useRef<number | null>(null);
 
+    srcRef.current = resolvedSrc;
+
+    // ── Component State ──────────────────────────────────────────────────────
+    const [isLoaded, setIsLoaded]       = useState(false);
+    const [isAudioOnly, setIsAudioOnly] = useState(false);
+    const [hasError, setHasError]       = useState(false);
+
+    // ── GPU Frame Sync ───────────────────────────────────────────────────────
     const cancelFrameSync = useCallback(() => {
       if (rafIdRef.current !== null) {
         cancelAnimationFrame(rafIdRef.current);
@@ -98,29 +86,35 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
       }
     }, []);
 
-    // ─── safePlay — no stale closure (reads srcRef, not prop directly) ──────
-    // FIX BUG #4: Use srcRef.current instead of capturing resolvedSrc in closure.
+    // ── checkDimensions helper ───────────────────────────────────────────────
+    const checkVideoState = useCallback(() => {
+      const v = videoRef.current;
+      if (!v) return;
+
+      if (v.videoWidth > 0 && v.videoHeight > 0) {
+        setIsLoaded(true);
+        setIsAudioOnly(false);
+        setHasError(false);
+      } else if (v.readyState >= 2) {
+        // Ready to play audio or video, but dimensions zero
+        setIsLoaded(true);
+      }
+    }, []);
+
+    // ── safePlay ─────────────────────────────────────────────────────────────
     const safePlay = useCallback(async () => {
       const v = videoRef.current;
       if (!v) return;
 
       const currentSrc = srcRef.current;
-      if (!currentSrc) {
-        console.warn('[Player] safePlay called with no src — skipping');
-        return;
-      }
+      if (!currentSrc) return;
 
-      // Ensure video element has the correct src
       if (!v.src || v.src !== currentSrc) {
         v.src = currentSrc;
         v.load();
-        canPlayFiredRef.current = false;
       }
 
-      console.log(`[Player] safePlay | readyState=${v.readyState} src=${currentSrc.slice(0, 50)}`);
-
       if (v.readyState < 3) {
-        console.log('[Player] Waiting for canplay...');
         await new Promise<void>((resolve) => {
           v.addEventListener('canplay', () => resolve(), { once: true });
         });
@@ -131,131 +125,114 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
 
       try {
         await v.play();
+        checkVideoState();
         const dt = (performance.now() - t0Ref.current).toFixed(0);
-        console.log(`[Player] ✅ play() OK | startup=${dt}ms`);
+        console.log(`[Player] ✅ play() succeeded | startup=${dt}ms | dimensions=${v.videoWidth}x${v.videoHeight}`);
       } catch (err) {
-        console.warn('[Player] ⚠ play() blocked by autoplay policy:', err);
+        console.warn('[Player] ⚠ play() blocked:', err);
       }
-    }, []); // ← no deps — reads everything via refs
+    }, [checkVideoState]);
 
-    // ─── Permanent event listeners (attached ONCE at mount) ─────────────────
-    // FIX BUG #5: Check readyState immediately after attaching, in case
-    // loadedmetadata already fired before our listener was added.
+    // ── Permanent Event Listeners ────────────────────────────────────────────
     useEffect(() => {
       const v = videoRef.current;
       if (!v) return;
 
-      const onLoadedMetadata = () => {
-        const isAudioOnly = v.videoWidth === 0 || v.videoHeight === 0;
-        console.log(`[Player] loadedmetadata | ${v.videoWidth}×${v.videoHeight} | ${isAudioOnly ? 'AUDIO-ONLY' : 'VIDEO'}`);
-        setLoadState(isAudioOnly ? 'audio-only' : 'ready');
+      const handleMetadata = () => {
+        console.log(`[Player] loadedmetadata | ${v.videoWidth}x${v.videoHeight}`);
+        checkVideoState();
       };
 
-      const onCanPlay = () => {
-        const dt = (performance.now() - t0Ref.current).toFixed(0);
-        console.log(`[Player] canplay | dt=${dt}ms | readyState=${v.readyState}`);
-        canPlayFiredRef.current = true;
+      const handleCanPlay = () => {
+        console.log(`[Player] canplay | readyState=${v.readyState} | ${v.videoWidth}x${v.videoHeight}`);
+        checkVideoState();
 
-        // If metadata says it's a valid video, mark as ready
-        if (v.videoWidth > 0 || v.videoHeight > 0) {
-          setLoadState('ready');
-        }
-
-        // Trigger autoplay if pending
         if (autoPlayRef.current) {
           autoPlayRef.current = false;
           safePlay();
         }
       };
 
-      const onPlaying = () => {
-        const dt = (performance.now() - t0Ref.current).toFixed(0);
-        console.log(`[Player] 🚀 playing | total_startup=${dt}ms`);
+      const handlePlaying = () => {
+        console.log(`[Player] 🚀 playing | ${v.videoWidth}x${v.videoHeight}`);
+        checkVideoState();
         startFrameSync();
       };
 
-      const onPause  = () => cancelFrameSync();
-      const onEnded  = () => { cancelFrameSync(); console.log('[Player] ended'); };
-      const onError  = () => {
-        const err = v.error;
-        console.error(`[Player] ❌ error | code=${err?.code} msg=${err?.message} src=${v.src?.slice(0, 60)}`);
-        setLoadState('error');
+      const handleTimeUpdate = () => {
+        if (v.videoWidth > 0 && !isLoaded) {
+          checkVideoState();
+        }
       };
 
-      v.addEventListener('loadedmetadata', onLoadedMetadata);
-      v.addEventListener('canplay',        onCanPlay);
-      v.addEventListener('playing',        onPlaying);
-      v.addEventListener('pause',          onPause);
-      v.addEventListener('ended',          onEnded);
-      v.addEventListener('error',          onError);
+      const handlePause = () => cancelFrameSync();
+      const handleEnded = () => cancelFrameSync();
+      const handleError = () => {
+        console.error(`[Player] ❌ error:`, v.error);
+        setHasError(true);
+      };
 
-      // FIX BUG #5: If the browser already loaded metadata before we attached
-      // listeners (e.g. from memory cache), check immediately.
-      if (v.readyState >= 1 && v.src) {
-        onLoadedMetadata();
-      }
-      if (v.readyState >= 3 && v.src) {
-        onCanPlay();
-      }
+      v.addEventListener('loadedmetadata', handleMetadata);
+      v.addEventListener('loadeddata',     checkVideoState);
+      v.addEventListener('canplay',        handleCanPlay);
+      v.addEventListener('playing',        handlePlaying);
+      v.addEventListener('timeupdate',     handleTimeUpdate);
+      v.addEventListener('resize',         checkVideoState);
+      v.addEventListener('pause',          handlePause);
+      v.addEventListener('ended',          handleEnded);
+      v.addEventListener('error',          handleError);
+
+      if (v.readyState >= 1) checkVideoState();
 
       return () => {
-        v.removeEventListener('loadedmetadata', onLoadedMetadata);
-        v.removeEventListener('canplay',        onCanPlay);
-        v.removeEventListener('playing',        onPlaying);
-        v.removeEventListener('pause',          onPause);
-        v.removeEventListener('ended',          onEnded);
-        v.removeEventListener('error',          onError);
+        v.removeEventListener('loadedmetadata', handleMetadata);
+        v.removeEventListener('loadeddata',     checkVideoState);
+        v.removeEventListener('canplay',        handleCanPlay);
+        v.removeEventListener('playing',        handlePlaying);
+        v.removeEventListener('timeupdate',     handleTimeUpdate);
+        v.removeEventListener('resize',         checkVideoState);
+        v.removeEventListener('pause',          handlePause);
+        v.removeEventListener('ended',          handleEnded);
+        v.removeEventListener('error',          handleError);
         cancelFrameSync();
       };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // ← intentionally permanent
+    }, []);
 
-    // ─── Src change effect — assigns src + starts buffering immediately ──────
+    // ── Src Change Effect ────────────────────────────────────────────────────
     useEffect(() => {
       const v = videoRef.current;
       if (!v || !resolvedSrc) return;
-      if (prevSrcRef.current === resolvedSrc) return; // same question, skip
+      if (prevSrcRef.current === resolvedSrc) return;
 
-      prevSrcRef.current      = resolvedSrc;
-      canPlayFiredRef.current = false;
-      autoPlayRef.current     = autoPlayOnMount;
-      t0Ref.current           = performance.now();
+      prevSrcRef.current  = resolvedSrc;
+      autoPlayRef.current = autoPlayOnMount;
+      t0Ref.current       = performance.now();
 
-      console.log(`[Player] 📼 New src | id=${questionId} autoPlay=${autoPlayOnMount} | ${resolvedSrc.slice(0, 60)}`);
+      setIsLoaded(false);
+      setHasError(false);
 
-      // Reset visual state for new question
-      setLoadState('loading');
-
-      // Stop current playback cleanly
       if (!v.paused) v.pause();
 
-      // Assign src imperatively (React does NOT touch src after mount)
       v.src     = resolvedSrc;
       v.preload = 'auto';
       v.load();
-
-      console.log(`[Player] load() called | t=${performance.now().toFixed(0)}ms`);
     }, [resolvedSrc, questionId, autoPlayOnMount]);
 
-    // ─── autoPlayOnMount change (countdown finished → trigger play) ──────────
+    // ── autoPlayOnMount Effect ───────────────────────────────────────────────
     useEffect(() => {
       autoPlayRef.current = autoPlayOnMount;
-
       if (!autoPlayOnMount) return;
 
       const v = videoRef.current;
-      if (!v || !v.src) return;
-
-      if (v.readyState >= 3) {
-        // Already buffered — play immediately
+      if (v && v.src && v.readyState >= 3) {
         autoPlayRef.current = false;
         safePlay();
       }
-      // else: canplay handler will fire safePlay when ready
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [autoPlayOnMount]);
 
-    // ─── Imperative API ──────────────────────────────────────────────────────
+    // ── Imperative Ref Handle ────────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
       replay: async () => {
         const v = videoRef.current;
@@ -272,13 +249,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
       },
     }));
 
-    // ─── Derived display state ───────────────────────────────────────────────
-    const isLoading   = loadState === 'idle' || loadState === 'loading';
-    const isAudioOnly = loadState === 'audio-only';
-    const hasError    = loadState === 'error';
-    const isReady     = loadState === 'ready';
-
-    // ─── JSX ─────────────────────────────────────────────────────────────────
+    // ── JSX Render ───────────────────────────────────────────────────────────
     return (
       <div
         className="relative flex flex-col items-center justify-center m-auto select-none w-full"
@@ -290,7 +261,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
           transition={{ duration: 0.3, ease: 'easeOut' }}
           className="relative w-full overflow-hidden rounded-[24px] backdrop-blur-2xl"
           style={{
-            minHeight: '240px',
+            minHeight: '260px',
             background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
             border: '2px solid rgba(168,85,247,0.4)',
             boxShadow: '0 24px 70px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.25), 0 0 50px rgba(168,85,247,0.25)',
@@ -308,8 +279,8 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
             style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(192,132,252,0.8) 50%, transparent 100%)' }}
           />
 
-          {/* ── Loading Overlay ── */}
-          {isLoading && (
+          {/* Loading Spinner Overlay */}
+          {!isLoaded && !hasError && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 pointer-events-none">
               <div className="h-10 w-10 rounded-full border-4 border-purple-500/30 border-t-purple-400 animate-spin" />
               <span className="text-[11px] font-bold tracking-widest text-purple-300/80 uppercase">
@@ -318,21 +289,17 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
             </div>
           )}
 
-          {/* ── Error State ── */}
-          {hasError && !isLoading && (
+          {/* Error Overlay */}
+          {hasError && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 pointer-events-none">
               <span className="text-3xl">⚠️</span>
               <span className="text-xs font-bold text-red-400/80 uppercase tracking-widest">
                 Could not load clip
               </span>
-              <span className="text-[10px] text-slate-500 max-w-[200px] text-center">
-                Re-import this video in the Admin Panel
-              </span>
             </div>
           )}
 
-          {/* ── Audio-Only Visualizer (FIX BUG #2) ── */}
-          {/* Shown when an audio file (mp3/m4a/wav) is loaded instead of a video file */}
+          {/* Audio-Only Visualizer Overlay */}
           {isAudioOnly && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10 pointer-events-none">
               <div className="flex items-end gap-1 h-12">
@@ -354,25 +321,19 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
             </div>
           )}
 
-          {/* ── Video Inner Container ── */}
+          {/* Video Container */}
           <div
-            className="relative overflow-hidden bg-black/90 rounded-[24px] flex items-center justify-center"
-            style={{ minHeight: '240px', maxHeight: '75vh' }}
+            className="relative overflow-hidden bg-black/90 rounded-[24px] flex items-center justify-center w-full"
+            style={{ minHeight: '260px', maxHeight: '75vh' }}
           >
             {/*
-             * THE SINGLE PERSISTENT VIDEO ELEMENT.
-             * src is set ONLY via videoRef (imperative) — React never touches it.
-             * This prevents React reconciler from resetting src during re-renders.
-             *
-             * For audio-only files: video has width=0, height=0 naturally.
-             * We force minWidth/minHeight so it doesn't collapse and audio still plays.
-             * The audio-only visualizer overlay handles the visual display.
-             *
-             * opacity: invisible while loading (prevents flash of wrong frame),
-             * visible once isReady or isAudioOnly.
+             * ALWAYS VISIBLE VIDEO ELEMENT
+             * Direct src attribute in JSX so browser initiates load immediately.
+             * opacity: 1 ensures video frames are rendered visibly as soon as decoded.
              */}
             <video
               ref={videoRef}
+              src={resolvedSrc || undefined}
               controls={false}
               playsInline
               preload="auto"
@@ -380,31 +341,24 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
               controlsList="nofullscreen noremoteplayback nodownload noplaybackrate"
               style={{
                 display: 'block',
-                width: isReady ? 'auto' : '100%',
-                height: isReady ? 'auto' : '240px',
-                minWidth:  isAudioOnly ? '100%' : undefined,
-                minHeight: isAudioOnly ? '240px' : undefined,
+                width: '100%',
+                height: 'auto',
                 maxWidth: '100%',
                 maxHeight: '75vh',
+                minHeight: '260px',
                 objectFit: 'contain',
                 borderRadius: '24px',
-                // Opacity: visible only when video is ready; audio-only is always 0
-                // (the visualizer overlay handles the visual for audio-only)
-                opacity: isReady ? 1 : 0,
-                transition: 'opacity 0.35s ease',
-                // GPU acceleration
+                opacity: 1, // ALWAYS VISIBLE
                 transform: 'translateZ(0)',
                 backfaceVisibility: 'hidden',
-                willChange: 'transform',
-                contain: 'layout paint size',
               }}
               className="movie-player pointer-events-none select-none"
             />
 
             {/* Status Badge */}
             <div className="absolute top-4 right-4 flex items-center gap-2 rounded-full bg-purple-500/20 border border-purple-500/50 px-3.5 py-1 text-xs font-bold text-purple-300 backdrop-blur-md shadow-lg shadow-purple-500/20 pointer-events-none z-30">
-              <span className={`h-2 w-2 rounded-full ${isReady || isAudioOnly ? 'bg-green-400' : 'bg-purple-400 animate-pulse'}`} />
-              {isAudioOnly ? 'AUDIO STAGE' : 'MOVIE VIDEO STAGE'}
+              <span className={`h-2 w-2 rounded-full ${isLoaded ? 'bg-green-400' : 'bg-purple-400 animate-pulse'}`} />
+              MOVIE VIDEO STAGE
             </div>
           </div>
         </motion.div>
@@ -415,10 +369,6 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
 
 StageMediaPlayerComponent.displayName = 'StageMediaPlayer';
 
-/**
- * Memoized to prevent re-renders from parent state changes (timer ticks, score).
- * Only re-renders when the QUESTION itself changes or autoplay flag flips.
- */
 export const StageMediaPlayer = memo(
   StageMediaPlayerComponent,
   (prev, next) =>
