@@ -21,7 +21,7 @@ interface ChallengeLayoutProps {
 function BackArrow() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -38,94 +38,95 @@ export function ChallengeLayout({
 }: ChallengeLayoutProps) {
   const navigate = useNavigate();
 
-  const accentGrad =
-    accentColor === 'primary'
-      ? 'linear-gradient(135deg, #60a5fa, #a855f7)'
-      : 'linear-gradient(135deg, #a855f7, #06b6d4)';
+  // "Guess the" in white, second word in gradient
+  const titleWords = title.split(' ');
+  const mainWord = titleWords[0] || 'Guess';
+  const accentWord = titleWords.slice(1).join(' ') || 'Logo';
 
   return (
     <div className="relative flex min-h-dvh flex-col overflow-hidden bg-[#060918]">
       {/* ── Ambient Game Show Stage Background ── */}
       <BackgroundParticles />
 
-      {/* ── Top Bar Header ── */}
+      {/* ── Top Bar Header (1:1 Mockup Match) ── */}
       <motion.header
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0, 0, 0.2, 1] }}
-        className="sticky top-0 z-30 flex items-center gap-4 border-b px-5 py-3.5 backdrop-blur-xl sm:px-8"
+        className="sticky top-0 z-40 flex items-center justify-between gap-4 border-b px-6 py-3.5 backdrop-blur-2xl"
         style={{
-          borderColor: 'rgba(255,255,255,0.08)',
-          background: 'rgba(6,9,24,0.88)',
+          borderColor: 'rgba(168, 85, 247, 0.25)',
+          background: 'rgba(8, 10, 26, 0.85)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
         }}
       >
-        {/* Back button */}
-        <button
-          id="challenge-back-btn"
-          className="control-btn flex-shrink-0"
-          onClick={() => navigate(ROUTES.HOME)}
-          aria-label="Back to home"
-          title="Back to home"
-        >
-          <BackArrow />
-        </button>
+        {/* Left Section: Back Button + Stage Title */}
+        <div className="flex items-center gap-4">
+          <button
+            id="challenge-back-btn"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 border border-white/15 text-white transition-all hover:bg-white/15 hover:scale-105"
+            onClick={() => navigate(ROUTES.HOME)}
+            aria-label="Back to home"
+            title="Back to home"
+          >
+            <BackArrow />
+          </button>
 
-        {/* Title + Progress */}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-3">
-            <span
-              className="truncate font-bold tracking-tight"
-              style={{
-                fontFamily: 'Space Grotesk, system-ui, sans-serif',
-                fontSize: '1.05rem',
-                background: accentGrad,
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              {title}
+          <div className="flex flex-col leading-tight select-none">
+            <div className="flex items-center gap-1.5 text-xl font-black tracking-tight" style={{ fontFamily: 'Space Grotesk, system-ui, sans-serif' }}>
+              <span className="text-white">{mainWord}</span>
+              <span
+                style={{
+                  background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  filter: 'drop-shadow(0 0 10px rgba(168,85,247,0.8))',
+                }}
+              >
+                {accentWord}
+              </span>
+            </div>
+            <span className="text-xs font-semibold text-slate-400">
+              Question {questionIndex} of {totalQuestions}
             </span>
-            <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-slate-300">
-              Q{questionIndex}/{totalQuestions}
-            </span>
-          </div>
-          <div className="mt-1.5">
-            <ProgressBar
-              current={questionIndex}
-              total={totalQuestions}
-              accentColor={accentColor}
-            />
           </div>
         </div>
 
-        {/* Score Card */}
-        <div
-          className="flex-shrink-0 rounded-2xl px-4 py-2 text-center"
-          style={{
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-          }}
-        >
-          <p className="text-caption text-[#94a3b8]">Points</p>
-          <p
-            className="font-black leading-none text-[#f0f4ff]"
+        {/* Center Section: Progress Bar */}
+        <div className="hidden md:flex flex-1 max-w-md mx-6">
+          <ProgressBar current={questionIndex} total={totalQuestions} accentColor={accentColor} />
+        </div>
+
+        {/* Right Section: Score Badge + Countdown Timer Ring */}
+        <div className="flex items-center gap-4">
+          {/* Score Badge */}
+          <div
+            className="flex items-center gap-3 rounded-2xl px-4 py-2 text-center select-none"
             style={{
-              fontFamily: 'Space Grotesk, system-ui, sans-serif',
-              fontSize: '1.35rem',
+              background: 'linear-gradient(135deg, rgba(20, 15, 45, 0.9), rgba(10, 8, 28, 0.9))',
+              border: '1.5px solid rgba(0, 240, 255, 0.35)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.5), 0 0 15px rgba(0,240,255,0.2)',
             }}
           >
-            {score}
-          </p>
-        </div>
+            <div className="flex items-center gap-1.5 text-cyan-400">
+              <span className="text-lg">🏆</span>
+              <span className="text-xs font-black">↑</span>
+            </div>
+            <div className="flex flex-col items-start leading-none">
+              <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">POINTS</span>
+              <span
+                className="font-black text-white text-xl"
+                style={{ fontFamily: 'Space Grotesk, system-ui, sans-serif' }}
+              >
+                {score}
+              </span>
+            </div>
+          </div>
 
-        {/* Timer Ring */}
-        <CountdownTimer
-          seconds={seconds}
-          total={totalSeconds}
-          accentColor={accentColor}
-        />
+          {/* Countdown Timer Ring */}
+          <CountdownTimer seconds={seconds} total={totalSeconds} accentColor={accentColor} />
+        </div>
       </motion.header>
 
       {/* ── Main Stage Content ── */}

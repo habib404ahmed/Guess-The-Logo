@@ -41,9 +41,8 @@ export function RightControlPanel({
 }: RightControlPanelProps) {
   const isPrimary = accentColor === 'primary';
 
-  const glowColor = isPrimary ? 'rgba(59,130,246,0.5)' : 'rgba(168,85,247,0.5)';
-  const borderColor = isPrimary ? 'rgba(59,130,246,0.6)' : 'rgba(168,85,247,0.6)';
-  const badgeColor = isPrimary ? '#60a5fa' : '#c084fc';
+  const glowColor = isPrimary ? 'rgba(168,85,247,0.55)' : 'rgba(255,0,127,0.55)';
+  const borderColor = isPrimary ? '#a855f7' : '#ff007f';
 
   const handleRevealClick = () => {
     if (isDisabled) return;
@@ -68,37 +67,75 @@ export function RightControlPanel({
     if (onReplay) onReplay();
   };
 
+  // Format questionLabel so 'logo' or 'movie' is highlighted in cyan
+  const renderQuestionText = (text: string) => {
+    const parts = text.split(/(logo|movie)/i);
+    return parts.map((part, i) => {
+      if (part.toLowerCase() === 'logo' || part.toLowerCase() === 'movie') {
+        return (
+          <span
+            key={i}
+            className="text-cyan-400"
+            style={{ textShadow: '0 0 12px rgba(0, 240, 255, 0.8)' }}
+          >
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
   return (
     <motion.div
       layout
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className="flex flex-col gap-5 w-full items-stretch"
+      className="relative flex flex-col gap-5 w-full items-stretch p-6 rounded-3xl backdrop-blur-3xl select-none"
+      style={{
+        background: 'linear-gradient(145deg, rgba(14, 12, 35, 0.92) 0%, rgba(6, 8, 24, 0.96) 100%)',
+        border: `2px solid ${borderColor}`,
+        boxShadow: `0 20px 60px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.25), 0 0 45px ${glowColor}`,
+        clipPath: 'polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px)',
+      }}
     >
-      {/* ── 1. Question Information Card ── */}
-      <motion.div
-        layout
-        className="flex flex-col gap-2 rounded-2xl p-5 border backdrop-blur-2xl relative overflow-hidden"
-        style={{
-          background: 'rgba(255, 255, 255, 0.04)',
-          borderColor: 'rgba(255, 255, 255, 0.12)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <span
-            className="text-xs font-black tracking-widest uppercase"
-            style={{ color: badgeColor }}
-          >
-            {categoryOrGenre}
-          </span>
-          <span className="rounded-full bg-white/10 border border-white/15 px-3 py-0.5 text-xs font-bold text-slate-200">
-            Question {questionIndex} of {totalQuestions}
-          </span>
+      {/* HUD Chamfered Corner Markers */}
+      <div className="pointer-events-none absolute top-3 left-3 h-3.5 w-3.5 border-t-2 border-l-2 border-purple-400 z-20" />
+      <div className="pointer-events-none absolute top-3 right-3 h-3.5 w-3.5 border-t-2 border-r-2 border-purple-400 z-20" />
+      <div className="pointer-events-none absolute bottom-3 left-3 h-3.5 w-3.5 border-b-2 border-l-2 border-purple-400 z-20" />
+      <div className="pointer-events-none absolute bottom-3 right-3 h-3.5 w-3.5 border-b-2 border-r-2 border-purple-400 z-20" />
+
+      {/* ── 1. Top Header inside Right Card (Category + Question Badge) ── */}
+      <div className="flex items-center justify-between">
+        {/* Left: Chip Icon + Category Label & Value */}
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/15 border border-cyan-400/40 text-cyan-400 text-lg shadow-[0_0_15px_rgba(0,240,255,0.3)]">
+            ⚙️
+          </div>
+          <div className="flex flex-col leading-none">
+            <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">
+              CATEGORY
+            </span>
+            <span
+              className="text-base font-black tracking-tight text-cyan-400 mt-1 uppercase"
+              style={{ textShadow: '0 0 12px rgba(0,240,255,0.7)' }}
+            >
+              {categoryOrGenre.replace('CATEGORY:', '').trim()}
+            </span>
+          </div>
         </div>
-        <h2 className="text-base sm:text-lg font-bold text-[#f0f4ff] leading-snug">
-          {questionLabel}
-        </h2>
-      </motion.div>
+
+        {/* Right: Question Badge */}
+        <div
+          className="flex items-center justify-center px-4 py-1.5 rounded-full text-xs font-black text-white shadow-xl"
+          style={{
+            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.4), rgba(126, 34, 206, 0.4))',
+            border: '1.5px solid rgba(168, 85, 247, 0.7)',
+            boxShadow: '0 0 15px rgba(168, 85, 247, 0.4)',
+          }}
+        >
+          QUESTION {questionIndex} of {totalQuestions}
+        </div>
+      </div>
 
       {/* ── 2. Dialogue Clue Card (Movie Challenge BEFORE Reveal ONLY) ── */}
       <AnimatePresence mode="popLayout">
@@ -128,7 +165,26 @@ export function RightControlPanel({
         )}
       </AnimatePresence>
 
-      {/* ── 3. Dynamic Answer Card (Created ONLY WHEN isRevealed === true) ── */}
+      {/* ── 3. Question Label Container Box (Matches User Mockup Container) ── */}
+      {!isRevealed && (
+        <div
+          className="relative flex flex-col items-center justify-center p-8 rounded-2xl border border-white/10 text-center min-h-[160px]"
+          style={{
+            background: 'radial-gradient(ellipse at center, rgba(12, 16, 38, 0.95) 0%, rgba(5, 7, 20, 0.98) 100%)',
+            boxShadow: 'inset 0 0 20px rgba(0,0,0,0.6)',
+          }}
+        >
+          <div className="h-0.5 w-16 bg-gradient-to-r from-transparent via-cyan-400 to-transparent absolute top-0" />
+          <h2
+            className="text-2xl sm:text-3xl font-black text-white leading-snug tracking-tight"
+            style={{ fontFamily: 'Space Grotesk, system-ui, sans-serif' }}
+          >
+            {renderQuestionText(questionLabel)}
+          </h2>
+        </div>
+      )}
+
+      {/* ── 4. Dynamic Answer Card (Created ONLY WHEN isRevealed === true) ── */}
       <AnimatePresence mode="popLayout">
         {isRevealed && (
           <motion.div
@@ -141,11 +197,9 @@ export function RightControlPanel({
               duration: 0.5,
               ease: [0.175, 0.885, 0.32, 1.275], // Dramatic bounce
             }}
-            className="relative w-full flex flex-col items-center justify-center gap-2.5 overflow-hidden rounded-3xl p-6 text-center backdrop-blur-2xl"
+            className="relative w-full flex flex-col items-center justify-center gap-2.5 overflow-hidden rounded-3xl p-6 text-center backdrop-blur-2xl min-h-[160px]"
             style={{
-              background: isPrimary
-                ? 'linear-gradient(135deg, rgba(59,130,246,0.35), rgba(168,85,247,0.35))'
-                : 'linear-gradient(135deg, rgba(168,85,247,0.35), rgba(6,182,212,0.35))',
+              background: 'linear-gradient(135deg, rgba(0,240,255,0.25), rgba(168,85,247,0.35))',
               border: `2px solid ${borderColor}`,
               boxShadow: `0 0 80px ${glowColor}, inset 0 0 35px rgba(255,255,255,0.25)`,
             }}
@@ -169,9 +223,7 @@ export function RightControlPanel({
                 fontFamily: 'Space Grotesk, system-ui, sans-serif',
                 fontSize: 'clamp(2rem, 3.5vw, 2.75rem)',
                 color: '#ffffff',
-                textShadow: isPrimary
-                  ? '0 0 30px rgba(96,165,250,1), 0 0 60px rgba(168,85,247,0.9)'
-                  : '0 0 30px rgba(192,132,252,1), 0 0 60px rgba(34,211,238,0.9)',
+                textShadow: '0 0 30px rgba(0,240,255,1), 0 0 60px rgba(168,85,247,0.9)',
               }}
             >
               {answerText || 'Answer Revealed'}
@@ -184,7 +236,6 @@ export function RightControlPanel({
               </p>
             )}
 
-            {/* Subtitle / Category (if provided & no hint) */}
             {!optionalHint && subtitle && (
               <p className="relative z-10 text-xs sm:text-sm font-semibold text-[#94a3b8]">
                 {subtitle}
@@ -194,8 +245,8 @@ export function RightControlPanel({
         )}
       </AnimatePresence>
 
-      {/* ── 4. Host Action Buttons (Stacks naturally below visible cards!) ── */}
-      <motion.div layout className="flex flex-col gap-3.5 w-full">
+      {/* ── 5. Action Buttons (Reveal Answer vs Next Question) ── */}
+      <motion.div layout className="flex flex-col gap-3.5 w-full mt-1">
         {/* Replay Clip Button */}
         {showReplayButton && onReplay && (
           <motion.button
@@ -207,7 +258,7 @@ export function RightControlPanel({
             animate={{ opacity: 1, y: 0 }}
             className="btn btn-xl w-full overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed"
             style={{
-              height: '56px',
+              height: '54px',
               background: 'rgba(255,255,255,0.08)',
               border: '1px solid rgba(255,255,255,0.22)',
               color: '#ffffff',
@@ -225,7 +276,7 @@ export function RightControlPanel({
           </motion.button>
         )}
 
-        {/* Action Button: Reveal Answer vs Next Question */}
+        {/* Action Button: Reveal Answer vs Next Question (1:1 Mockup Button Styling) */}
         <AnimatePresence mode="wait">
           {!isRevealed ? (
             <motion.button
@@ -237,25 +288,21 @@ export function RightControlPanel({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92 }}
               transition={{ duration: 0.2 }}
-              className="btn btn-xl shimmer group w-full overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed"
+              className="btn btn-xl shimmer group w-full overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-black text-white tracking-widest text-lg"
               style={{
-                height: '60px',
-                background: isPrimary
-                  ? 'linear-gradient(135deg, #3b82f6, #8b5cf6, #2563eb)'
-                  : 'linear-gradient(135deg, #a855f7, #ec4899, #9333ea)',
-                border: `1px solid ${borderColor}`,
-                color: '#ffffff',
-                boxShadow: `0 8px 36px ${glowColor}`,
+                height: '56px',
+                background: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 50%, #a855f7 100%)',
+                border: '2px solid #00f0ff',
+                boxShadow: '0 0 35px rgba(0, 240, 255, 0.7), inset 0 1px 0 rgba(255,255,255,0.4)',
+                borderRadius: '50px',
               }}
-              whileHover={isDisabled ? {} : { scale: 1.02, y: -1 }}
+              whileHover={isDisabled ? {} : { scale: 1.02, filter: 'brightness(1.15)' }}
               whileTap={isDisabled ? {} : { scale: 0.98 }}
               onMouseEnter={() => !isDisabled && audioManager.playHover()}
               onClick={handleRevealClick}
             >
               <span className="text-xl">🎯</span>
-              <span className="font-extrabold tracking-wide text-lg">
-                REVEAL ANSWER
-              </span>
+              <span>REVEAL ANSWER</span>
             </motion.button>
           ) : (
             <motion.button
@@ -267,22 +314,20 @@ export function RightControlPanel({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3, ease: [0, 0, 0.2, 1] }}
-              className="btn btn-xl group w-full overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed"
+              className="btn btn-xl group w-full overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-black text-white tracking-widest text-lg"
               style={{
-                height: '60px',
+                height: '56px',
                 background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-                border: '1px solid rgba(34, 197, 94, 0.7)',
-                color: '#ffffff',
-                boxShadow: '0 8px 36px rgba(34, 197, 94, 0.5)',
+                border: '2px solid #22c55e',
+                boxShadow: '0 0 35px rgba(34, 197, 94, 0.7)',
+                borderRadius: '50px',
               }}
-              whileHover={isDisabled ? {} : { scale: 1.02, y: -1 }}
+              whileHover={isDisabled ? {} : { scale: 1.02, filter: 'brightness(1.15)' }}
               whileTap={isDisabled ? {} : { scale: 0.98 }}
               onMouseEnter={() => !isDisabled && audioManager.playHover()}
               onClick={handleNextClick}
             >
-              <span className="font-extrabold tracking-wide text-lg">
-                {isLastQuestion ? '🏆 VIEW FINAL RESULTS' : 'NEXT QUESTION'}
-              </span>
+              <span>{isLastQuestion ? '🏆 VIEW FINAL RESULTS' : 'NEXT QUESTION'}</span>
               <span className="text-xl">➡️</span>
             </motion.button>
           )}

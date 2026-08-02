@@ -6,22 +6,19 @@ interface CountdownTimerProps {
   accentColor?: 'primary' | 'secondary';
 }
 
-const SIZE = 72;
+const SIZE = 68;
 const STROKE = 5;
 const RADIUS = (SIZE - STROKE * 2) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 /**
- * CountdownTimer
- *
- * Circular SVG timer that drains clockwise.
- * Colour transitions: normal → warning (amber) → danger (red).
+ * CountdownTimer — 1:1 Match to User Mockup
+ * Circular SVG timer with "18 SEC" formatting and glowing cyan/magenta ring.
  */
 export function CountdownTimer({ seconds, total, accentColor = 'primary' }: CountdownTimerProps) {
   const progress = total > 0 ? seconds / total : 0;
   const offset = CIRCUMFERENCE * (1 - progress);
 
-  // Colour states
   const isWarning = progress <= 0.4 && progress > 0.2;
   const isDanger  = progress <= 0.2;
 
@@ -30,14 +27,21 @@ export function CountdownTimer({ seconds, total, accentColor = 'primary' }: Coun
     : isWarning
     ? '#f59e0b'
     : accentColor === 'primary'
-    ? '#3b82f6'
+    ? '#00f0ff'
     : '#a855f7';
 
-  const textColor = isDanger ? '#f87171' : isWarning ? '#fbbf24' : '#f0f4ff';
-
   return (
-    <div className="relative flex items-center justify-center" style={{ width: SIZE, height: SIZE }}>
-      {/* Track */}
+    <div
+      className="relative flex flex-col items-center justify-center rounded-full p-1 shadow-2xl"
+      style={{
+        width: SIZE,
+        height: SIZE,
+        background: 'rgba(12, 10, 28, 0.85)',
+        border: '1.5px solid rgba(255, 255, 255, 0.15)',
+        boxShadow: `0 0 20px ${strokeColor}60`,
+      }}
+    >
+      {/* SVG Ring */}
       <svg width={SIZE} height={SIZE} className="absolute -rotate-90">
         <circle
           cx={SIZE / 2}
@@ -58,25 +62,26 @@ export function CountdownTimer({ seconds, total, accentColor = 'primary' }: Coun
           strokeDasharray={CIRCUMFERENCE}
           animate={{ strokeDashoffset: offset }}
           transition={{ duration: 0.5, ease: 'linear' }}
-          style={{ filter: `drop-shadow(0 0 6px ${strokeColor}80)` }}
+          style={{ filter: `drop-shadow(0 0 8px ${strokeColor})` }}
         />
       </svg>
 
-      {/* Number */}
-      <motion.span
-        key={seconds}
-        initial={{ scale: 1.2, opacity: 0.6 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.2 }}
-        className="relative font-bold tabular-nums"
-        style={{
-          fontFamily: 'Space Grotesk, Inter, system-ui, sans-serif',
-          fontSize: '1.25rem',
-          color: textColor,
-        }}
-      >
-        {seconds}
-      </motion.span>
+      {/* Number & SEC */}
+      <div className="relative flex flex-col items-center justify-center leading-none">
+        <motion.span
+          key={seconds}
+          initial={{ scale: 1.15, opacity: 0.7 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          className="font-black text-white text-lg tracking-tight tabular-nums"
+          style={{ fontFamily: 'Space Grotesk, system-ui, sans-serif' }}
+        >
+          {seconds}
+        </motion.span>
+        <span className="text-[9px] font-black text-purple-300 tracking-wider uppercase mt-0.5">
+          SEC
+        </span>
+      </div>
     </div>
   );
 }
