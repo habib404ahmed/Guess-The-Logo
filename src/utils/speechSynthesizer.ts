@@ -1,16 +1,17 @@
 /**
- * SpeechSynthesizer — Ultra-Robust Dual-Engine AI Host Voice
+ * SpeechSynthesizer — Browser AI Host Voice Engine
  * ─────────────────────────────────────────────────────────────────────────────
- * Engine 1: Native Web Speech API (speechSynthesis)
- * Engine 2: High-Quality Audio TTS Stream Fallback
- * Guarantees 100% reliable voice playback on all browsers, OS, and projectors.
+ * Clean & reliable Web Speech API engine:
+ * - Retains active utterance in class property to prevent Chrome Garbage Collection bug.
+ * - Always calls synth.resume() before speaking.
+ * - Gracefully speaks default en-US voice even if getVoices() is empty initially.
  */
 
 class SpeechSynthesizerService {
   private synth: SpeechSynthesis | null = null;
   private voice: SpeechSynthesisVoice | null = null;
   private isEnabled: boolean = true;
-  private activeAudio: HTMLAudioElement | null = null;
+  private activeUtterance: SpeechSynthesisUtterance | null = null;
 
   constructor() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -21,13 +22,15 @@ class SpeechSynthesizerService {
         this.synth.onvoiceschanged = () => this.loadVoices();
       }
 
-      // Pre-load audio context on first touch/click gesture
+      // Unlock speech synthesis context on user gesture
       const unlock = () => {
-        if (this.synth) this.synth.resume();
+        if (this.synth) {
+          this.synth.resume();
+        }
       };
-      window.addEventListener('click', unlock);
-      window.addEventListener('touchstart', unlock);
-      window.addEventListener('keydown', unlock);
+      window.addEventListener('click', unlock, { passive: true });
+      window.addEventListener('touchstart', unlock, { passive: true });
+      window.addEventListener('keydown', unlock, { passive: true });
     }
   }
 
@@ -52,75 +55,29 @@ class SpeechSynthesizerService {
 
   public setEnabled(enabled: boolean) {
     this.isEnabled = enabled;
-    if (!enabled) {
-      if (this.synth) this.synth.cancel();
-      if (this.activeAudio) {
-        this.activeAudio.pause();
-        this.activeAudio = null;
-      }
+    if (!enabled && this.synth) {
+      this.synth.cancel();
     }
   }
 
   /**
-   * Audio Stream Fallback (100% Reliable TTS Audio Stream)
-   */
-  private speakViaAudioFallback(text: string): Promise<void> {
-    return new Promise((resolve) => {
-      if (this.activeAudio) {
-        this.activeAudio.pause();
-      }
-
-      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(text)}`;
-      const audio = new Audio(ttsUrl);
-      this.activeAudio = audio;
-
-      audio.onended = () => resolve();
-      audio.onerror = () => resolve();
-
-      const timeout = setTimeout(() => resolve(), 4500);
-      audio.onended = () => {
-        clearTimeout(timeout);
-        resolve();
-      };
-
-      audio.play().catch(() => resolve());
-    });
-  }
-
-  /**
-   * Promise-based speak with automatic fallback
+   * Promise-based speak that resolves strictly when utterance finishes
    */
   public speakAsync(text: string, rate: number = 0.95, pitch: number = 1.0): Promise<void> {
     return new Promise((resolve) => {
-      if (!this.isEnabled || typeof window === 'undefined') {
+      if (!this.isEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) {
         resolve();
         return;
-      }
-
-      // Stop any playing fallback audio
-      if (this.activeAudio) {
-        this.activeAudio.pause();
-        this.activeAudio = null;
       }
 
       const synth = window.speechSynthesis;
 
-      if (!synth) {
-        this.speakViaAudioFallback(text).then(resolve);
-        return;
-      }
-
+      // Resume synth if paused by browser autoplay policy
       synth.resume();
-      synth.cancel();
-      this.loadVoices();
+      synth.cancel(); // Clear queue
 
-      // Check if browser native voices are available
-      const voices = synth.getVoices();
-      if (!voices || voices.length === 0) {
-        // Fallback to audio stream
-        this.speakViaAudioFallback(text).then(resolve);
-        return;
-      }
+      // Load voice if available
+      this.loadVoices();
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'en-US';
@@ -132,25 +89,23 @@ class SpeechSynthesizerService {
         utterance.voice = this.voice;
       }
 
-      let spoken = false;
+      // Retain utterance in class field to prevent Chrome Garbage Collection silence
+      this.activeUtterance = utterance;
+
+      let finished = false;
       const done = () => {
-        if (!spoken) {
-          spoken = true;
+        if (!finished) {
+          finished = true;
+          this.activeUtterance = null;
           resolve();
         }
       };
 
       utterance.onend = done;
-      utterance.onerror = () => {
-        // If native speech errors out, try audio fallback!
-        this.speakViaAudioFallback(text).then(resolve);
-      };
+      utterance.onerror = done;
 
-      const maxTimer = setTimeout(() => {
-        if (!spoken) {
-          this.speakViaAudioFallback(text).then(resolve);
-        }
-      }, 3500);
+      // Safety timeout
+      const maxTimer = setTimeout(done, 4500);
 
       utterance.onend = () => {
         clearTimeout(maxTimer);
