@@ -1,32 +1,26 @@
-import { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import { useRef, useEffect, useState, forwardRef, useImperativeHandle, memo } from 'react';
 import { motion } from 'framer-motion';
 
 interface StageMediaPlayerProps {
   mediaSrc: string;
   videoUrl?: string;
-  fileName?: string;
-  movieTitle?: string;
-  genre?: string;
-  speaker?: string;
-  lines?: string[];
-  linesShown?: number;
   autoPlayOnMount?: boolean;
 }
 
 export interface StageMediaPlayerRef {
-  replay: () => void;
+  replay: () => Promise<void>;
   pause: () => void;
-  play: () => void;
+  play: () => Promise<void>;
 }
 
 const DEFAULT_FALLBACK_VIDEO = 'https://vjs.zencdn.net/v/oceans.mp4';
 
-export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayerProps>(
+const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlayerProps>(
   ({ mediaSrc, videoUrl, autoPlayOnMount = false }, ref) => {
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
 
-    // Always resolve video source using dialogueSrc || videoUrl
+    // 2. Resolve video URL stable string
     const activeMediaUrl = videoUrl || mediaSrc || DEFAULT_FALLBACK_VIDEO;
     const [videoSrc, setVideoSrc] = useState(activeMediaUrl);
 
@@ -34,85 +28,45 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
       setVideoSrc(activeMediaUrl);
     }, [activeMediaUrl]);
 
-    // Attach complete suite of requested HTML5 video event listeners & print video state metrics
-    useEffect(() => {
-      const v = videoRef.current;
-      if (!v) return;
-
-      const logVideoMetrics = (eventName: string) => {
-        console.log(`[Video Event: ${eventName}]`);
-        console.log("video.currentSrc =", v.currentSrc);
-        console.log("video.readyState =", v.readyState);
-        console.log("video.networkState =", v.networkState);
-        console.log("video.videoWidth =", v.videoWidth);
-        console.log("video.videoHeight =", v.videoHeight);
-        console.log("video.error =", v.error);
-      };
-
-      const events = [
-        'loadedmetadata',
-        'loadeddata',
-        'canplay',
-        'playing',
-        'error',
-        'stalled',
-        'waiting',
-        'emptied',
-      ];
-
-      const handlers = events.map((evt) => {
-        const handler = () => logVideoMetrics(evt);
-        v.addEventListener(evt, handler);
-        return { evt, handler };
-      });
-
-      logVideoMetrics('initial_mount');
-
-      return () => {
-        handlers.forEach(({ evt, handler }) => {
-          v.removeEventListener(evt, handler);
-        });
-      };
-    }, [videoSrc]);
-
-    // Unmuted Audio Playback by Default
-    const safePlay = () => {
+    // 4. Safe play helper (handles autoplay security policies)
+    const safePlay = async () => {
       if (!videoRef.current) return;
       videoRef.current.muted = false;
-      
-      const promise = videoRef.current.play();
-      if (promise !== undefined) {
-        promise
-          .then(() => {
-            setIsPlaying(true);
-          })
-          .catch((err) => {
-            console.warn('[Autoplay] Retrying unmuted playback on user interaction:', err);
-            if (videoRef.current) {
-              videoRef.current.muted = false;
-              videoRef.current.play().catch(() => {});
-            }
-          });
+
+      try {
+        await videoRef.current.play();
+        setIsPlaying(true);
+      } catch (err) {
+        console.warn('[Autoplay Policy] Unmuted play blocked, retrying:', err);
+        if (videoRef.current) {
+          videoRef.current.muted = false;
+          await videoRef.current.play().catch(() => {});
+          setIsPlaying(true);
+        }
       }
     };
 
+    // 5. Replay button: video.pause(); video.currentTime = 0; await video.play();
     useImperativeHandle(ref, () => ({
-      replay: () => {
+      replay: async () => {
         if (videoRef.current) {
+          videoRef.current.pause();
           videoRef.current.currentTime = 0;
-          videoRef.current.muted = false;
-          safePlay();
+          await safePlay();
         }
       },
       pause: () => {
-        if (videoRef.current) videoRef.current.pause();
+        if (videoRef.current) {
+          videoRef.current.pause();
+        }
         setIsPlaying(false);
       },
-      play: () => {
-        safePlay();
+      play: async () => {
+        await safePlay();
       },
     }));
 
+    // 4. Question changes setup: pause previous video, reset currentTime = 0, play once
     useEffect(() => {
       if (!autoPlayOnMount) {
         if (videoRef.current) {
@@ -126,7 +80,9 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
       safePlay();
 
       return () => {
-        if (videoRef.current) videoRef.current.pause();
+        if (videoRef.current) {
+          videoRef.current.pause();
+        }
       };
     }, [videoSrc, autoPlayOnMount]);
 
@@ -172,7 +128,7 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
             }}
           />
 
-          {/* ── RESPONSIVE ADAPTIVE DYNAMIC ASPECT-RATIO VIDEO CONTAINER ── */}
+          {/* ── SINGLE HARDWARE ACCELERATED HTML5 VIDEO ELEMENT (NO CSS EFFECTS ON VIDEO ITSELF) ── */}
           <div
             className="relative overflow-hidden bg-black/90 rounded-[24px] flex items-center justify-center transform-gpu translate-z-0"
             style={{
@@ -187,8 +143,8 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
               src={videoSrc}
               controls={false}
               playsInline
+              autoPlay={false}
               muted={false}
-              autoPlay={true}
               preload="auto"
               disablePictureInPicture
               controlsList="nofullscreen noremoteplayback nodownload noplaybackrate"
@@ -199,22 +155,16 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
                 maxWidth: '100%',
                 maxHeight: '75vh',
                 objectFit: 'contain',
+                willChange: 'transform',
+                transform: 'translateZ(0)',
                 borderRadius: '24px',
               }}
-              className="movie-player transform-gpu translate-z-0 pointer-events-none select-none"
-              onLoadedMetadata={(e) => {
-                const v = e.currentTarget;
-                console.log(
-                  `[Adaptive Player] Natural Dimensions: ${v.videoWidth}px x ${v.videoHeight}px (Ratio: ${(
-                    v.videoWidth / v.videoHeight
-                  ).toFixed(2)})`,
-                );
-              }}
+              className="movie-player pointer-events-none select-none"
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
               onEnded={() => setIsPlaying(false)}
               onError={() => {
-                console.warn('[Video Player Error] Failed loading media source:', videoSrc);
+                console.warn('[Video Error] Switching to fallback stream:', videoSrc);
                 if (videoSrc !== DEFAULT_FALLBACK_VIDEO) {
                   setVideoSrc(DEFAULT_FALLBACK_VIDEO);
                 }
@@ -233,6 +183,15 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
       </div>
     );
   },
+);
+
+// 1. & 9. Memoize video component so it ONLY re-renders when videoUrl or mediaSrc changes!
+export const StageMediaPlayer = memo(
+  StageMediaPlayerComponent,
+  (prev, next) =>
+    prev.videoUrl === next.videoUrl &&
+    prev.mediaSrc === next.mediaSrc &&
+    prev.autoPlayOnMount === next.autoPlayOnMount,
 );
 
 StageMediaPlayer.displayName = 'StageMediaPlayer';

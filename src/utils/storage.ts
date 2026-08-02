@@ -122,7 +122,17 @@ export async function getMediaBlob(key: string): Promise<Blob | null> {
   }
 }
 
+// ─── Object URL Memory Cache ──────────────────────────────────────────────────
+
+const cachedObjectUrls = new Map<string, string>();
+
 export async function deleteMediaBlob(key: string): Promise<void> {
+  const existingUrl = cachedObjectUrls.get(key);
+  if (existingUrl) {
+    URL.revokeObjectURL(existingUrl);
+    cachedObjectUrls.delete(key);
+  }
+
   try {
     const db = await getDB();
     return new Promise((resolve) => {
@@ -293,12 +303,16 @@ export async function getStoredMoviesAsync(): Promise<MovieQuestion[]> {
     }
 
     if (movies && Array.isArray(movies) && movies.length > 0) {
-      // Re-hydrate video Blob URLs from IndexedDB for each movie clip
+      // Re-hydrate video Blob URLs from IndexedDB for each movie clip (cached in memory)
       const resolved = await Promise.all(
         movies.map(async (m, idx) => {
           const blob = await getMediaBlob(m.id);
           if (blob) {
-            const objectUrl = URL.createObjectURL(blob);
+            let objectUrl = cachedObjectUrls.get(m.id);
+            if (!objectUrl) {
+              objectUrl = URL.createObjectURL(blob);
+              cachedObjectUrls.set(m.id, objectUrl);
+            }
             const extended: ExtendedMovieQuestion = {
               ...m,
               dialogueSrc: objectUrl,

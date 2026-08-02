@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { movieDialogues } from '@/data/movieQuestions';
 import type { MovieQuestion } from '@/types';
 import { shuffle } from '@/utils';
@@ -55,12 +55,18 @@ export function GuessMoviePage() {
   const mediaPlayerRef = useRef<StageMediaPlayerRef | null>(null);
   const { play, playRevealSequence, playNextSequence } = useSound();
 
-  const currentQuestion = questions[index];
+  // 8. Memoize the current question
+  const currentQuestion = useMemo(() => {
+    return questions[index];
+  }, [questions, index]);
+
   const dialogue = currentQuestion ? movieDialogues[currentQuestion.id] : null;
-  const allLines = dialogue?.lines ?? [
-    `Watch & listen to dialogue clip #${index + 1}`,
-    `Guess which movie this scene belongs to!`,
-  ];
+  const allLines = useMemo(() => {
+    return dialogue?.lines ?? [
+      `Watch & listen to dialogue clip #${index + 1}`,
+      `Guess which movie this scene belongs to!`,
+    ];
+  }, [dialogue?.lines, index]);
 
   const questionTime = settings.questionTimer || 25;
 
@@ -124,11 +130,12 @@ export function GuessMoviePage() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
-  const handleReplay = useCallback(() => {
+  // 5. Replay button handler: video.pause(); video.currentTime = 0; await video.play();
+  const handleReplay = useCallback(async () => {
     if (isControlsDisabled) return;
     play('click');
     if (mediaPlayerRef.current) {
-      mediaPlayerRef.current.replay();
+      await mediaPlayerRef.current.replay();
     }
   }, [isControlsDisabled, play]);
 
@@ -224,12 +231,6 @@ export function GuessMoviePage() {
             ref={mediaPlayerRef}
             mediaSrc={activeVideoUrl}
             videoUrl={activeVideoUrl}
-            fileName={currentQuestion.fileName}
-            movieTitle={currentQuestion.movieTitle}
-            genre={currentQuestion.genre}
-            speaker={dialogue?.speaker}
-            lines={allLines}
-            linesShown={linesShown}
             autoPlayOnMount={autoPlayVideo}
           />
         </div>
