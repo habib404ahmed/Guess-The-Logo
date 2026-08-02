@@ -87,7 +87,7 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
             setIsPlaying(true);
           })
           .catch((err) => {
-            console.warn('[Autoplay] Unmuted play blocked, retrying playback:', err);
+            console.warn('[Autoplay] Retrying unmuted playback on user interaction:', err);
             if (videoRef.current) {
               videoRef.current.muted = false;
               videoRef.current.play().catch(() => {});
@@ -131,19 +131,30 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
     }, [videoSrc, autoPlayOnMount]);
 
     return (
-      <div className="relative w-full max-w-2xl select-none">
+      <div
+        className="relative flex flex-col items-center justify-center m-auto select-none"
+        style={{
+          width: 'fit-content',
+          height: 'fit-content',
+          maxWidth: '100%',
+          maxHeight: '75vh',
+        }}
+      >
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.35, ease: 'easeOut' }}
-          className="relative flex flex-col overflow-hidden rounded-3xl backdrop-blur-2xl group"
+          className="relative flex items-center justify-center overflow-hidden rounded-[24px] backdrop-blur-2xl group"
           style={{
+            width: 'fit-content',
+            height: 'fit-content',
+            maxWidth: '100%',
+            maxHeight: '75vh',
             background:
               'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
             border: '2px solid rgba(168,85,247,0.4)',
             boxShadow:
               '0 24px 70px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.25), 0 0 50px rgba(168,85,247,0.25)',
-            minHeight: '320px',
           }}
         >
           {/* Futuristic HUD Corner Accents */}
@@ -161,8 +172,16 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
             }}
           />
 
-          {/* ── CLEAN VIDEO SCREEN: NO PLAY, PAUSE, MUTE, OR TIMELINE CONTROLS BARS ── */}
-          <div className="relative w-full overflow-hidden bg-black/90 rounded-3xl aspect-video flex items-center justify-center transform-gpu translate-z-0">
+          {/* ── RESPONSIVE ADAPTIVE DYNAMIC ASPECT-RATIO VIDEO CONTAINER ── */}
+          <div
+            className="relative overflow-hidden bg-black/90 rounded-[24px] flex items-center justify-center transform-gpu translate-z-0"
+            style={{
+              width: 'fit-content',
+              height: 'fit-content',
+              maxWidth: '100%',
+              maxHeight: '75vh',
+            }}
+          >
             <video
               ref={videoRef}
               src={videoSrc}
@@ -173,7 +192,24 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
               preload="auto"
               disablePictureInPicture
               controlsList="nofullscreen noremoteplayback nodownload noplaybackrate"
-              className="h-full w-full object-contain rounded-3xl movie-player transform-gpu translate-z-0 pointer-events-none select-none"
+              style={{
+                display: 'block',
+                width: 'auto',
+                height: 'auto',
+                maxWidth: '100%',
+                maxHeight: '75vh',
+                objectFit: 'contain',
+                borderRadius: '24px',
+              }}
+              className="movie-player transform-gpu translate-z-0 pointer-events-none select-none"
+              onLoadedMetadata={(e) => {
+                const v = e.currentTarget;
+                console.log(
+                  `[Adaptive Player] Natural Dimensions: ${v.videoWidth}px x ${v.videoHeight}px (Ratio: ${(
+                    v.videoWidth / v.videoHeight
+                  ).toFixed(2)})`,
+                );
+              }}
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
               onEnded={() => setIsPlaying(false)}
