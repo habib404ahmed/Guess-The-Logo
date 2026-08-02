@@ -3,6 +3,7 @@ import { motion, Reorder } from 'framer-motion';
 import type { MovieQuestion } from '@/types';
 import {
   saveStoredMovies,
+  saveStoredMoviesAsync,
   saveMediaBlob,
   deleteMediaBlob,
   type ExtendedMovieQuestion,
@@ -264,7 +265,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
   };
 
   // ── Save & Validate All Changes ──
-  const handleSaveAll = () => {
+  const handleSaveAll = async () => {
     for (let i = 0; i < movies.length; i++) {
       const m = movies[i];
       if (!m.movieTitle || m.movieTitle.trim() === '') {
@@ -277,9 +278,11 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
       }
     }
 
-    saveStoredMovies(movies);
+    // Extract binary Blobs for all active preview URLs and commit them to IndexedDB
+    showToast('Saving video clips & updating IndexedDB...');
+    await saveStoredMoviesAsync(movies);
     updateSaveTimestamp();
-    showToast('Saved all movie dialogue answers, dialogues & hints successfully!');
+    showToast('Saved all 6 video clips & metadata successfully!');
   };
 
   // ── Delete ──
@@ -666,7 +669,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
                       onClick={handleSaveAll}
                       className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 border border-white/20 text-white font-extrabold text-sm hover:scale-[1.02] transition-all cursor-pointer shadow-lg shadow-purple-500/25 ml-auto"
                     >
-                      <span>💾 Save Changes</span>
+                      <span>💾 Save All Changes</span>
                     </button>
                   </div>
 
