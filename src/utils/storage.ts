@@ -13,6 +13,16 @@ export interface ExtendedMovieQuestion extends MovieQuestion {
   media?: string;
 }
 
+const DEFAULT_SAMPLE_VIDEOS = [
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreet.mp4',
+];
+
 // ─── Storage Keys ─────────────────────────────────────────────────────────────
 
 const SETTINGS_KEY = 'fresher_arena_settings';
@@ -265,8 +275,13 @@ export function getStoredMovies(): MovieQuestion[] {
     if (raw) {
       const parsed: MovieQuestion[] = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        cachedMovies = parsed;
-        return parsed;
+        const enriched = parsed.map((m, idx) => ({
+          ...m,
+          dialogueSrc: m.dialogueSrc || m.videoUrl || DEFAULT_SAMPLE_VIDEOS[idx % DEFAULT_SAMPLE_VIDEOS.length],
+          videoUrl: m.videoUrl || m.dialogueSrc || DEFAULT_SAMPLE_VIDEOS[idx % DEFAULT_SAMPLE_VIDEOS.length],
+        }));
+        cachedMovies = enriched;
+        return enriched;
       }
     }
   } catch (err) {
@@ -285,7 +300,7 @@ export async function getStoredMoviesAsync(): Promise<MovieQuestion[]> {
     if (movies && Array.isArray(movies) && movies.length > 0) {
       // Re-hydrate video Blob URLs from IndexedDB for each movie clip
       const resolved = await Promise.all(
-        movies.map(async (m) => {
+        movies.map(async (m, idx) => {
           const blob = await getMediaBlob(m.id);
           if (blob) {
             const objectUrl = URL.createObjectURL(blob);
@@ -304,7 +319,8 @@ export async function getStoredMoviesAsync(): Promise<MovieQuestion[]> {
             return extended;
           }
 
-          const validSrc = m.dialogueSrc && !m.dialogueSrc.startsWith('blob:') ? m.dialogueSrc : (m.videoUrl || '');
+          const fallbackSrc = DEFAULT_SAMPLE_VIDEOS[idx % DEFAULT_SAMPLE_VIDEOS.length];
+          const validSrc = m.dialogueSrc && !m.dialogueSrc.startsWith('blob:') ? m.dialogueSrc : (m.videoUrl || fallbackSrc);
           const extended: ExtendedMovieQuestion = {
             ...m,
             dialogueSrc: validSrc,
