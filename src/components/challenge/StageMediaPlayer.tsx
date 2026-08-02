@@ -3,10 +3,9 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * ARCHITECTURE:
  *  • ONE <video> element, persistent across questions
- *  • src is set BOTH via JSX prop (synchronous initial render) AND imperatively
- *  • video.load() called immediately on src change
- *  • play() triggers after readyState >= HAVE_FUTURE_DATA (3) or canplay event
- *  • Always renders video visible (opacity: 1) whenever src is loaded and playing
+ *  • Direct src prop in JSX for instant native browser loading
+ *  • Automatic fallback to audio visualizer if video dimensions are 0 (e.g. mp3/m4a audio clips)
+ *  • Clean 2D compositor styling (no hardware transform blackouts)
  */
 
 import {
@@ -86,7 +85,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
       }
     }, []);
 
-    // ── checkDimensions helper ───────────────────────────────────────────────
+    // ── checkVideoState ──────────────────────────────────────────────────────
     const checkVideoState = useCallback(() => {
       const v = videoRef.current;
       if (!v) return;
@@ -96,8 +95,10 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
         setIsAudioOnly(false);
         setHasError(false);
       } else if (v.readyState >= 2) {
-        // Ready to play audio or video, but dimensions zero
+        // Media ready to play audio, but has no video dimensions (e.g. mp3, m4a, audio clip)
         setIsLoaded(true);
+        setIsAudioOnly(true);
+        setHasError(false);
       }
     }, []);
 
@@ -160,9 +161,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
       };
 
       const handleTimeUpdate = () => {
-        if (v.videoWidth > 0 && !isLoaded) {
-          checkVideoState();
-        }
+        checkVideoState();
       };
 
       const handlePause = () => cancelFrameSync();
@@ -210,6 +209,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
       t0Ref.current       = performance.now();
 
       setIsLoaded(false);
+      setIsAudioOnly(false);
       setHasError(false);
 
       if (!v.paused) v.pause();
@@ -261,7 +261,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
           transition={{ duration: 0.3, ease: 'easeOut' }}
           className="relative w-full overflow-hidden rounded-[24px] backdrop-blur-2xl"
           style={{
-            minHeight: '260px',
+            minHeight: '280px',
             background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
             border: '2px solid rgba(168,85,247,0.4)',
             boxShadow: '0 24px 70px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.25), 0 0 50px rgba(168,85,247,0.25)',
@@ -281,17 +281,17 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
 
           {/* Loading Spinner Overlay */}
           {!isLoaded && !hasError && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 pointer-events-none">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 pointer-events-none bg-black/60 backdrop-blur-sm">
               <div className="h-10 w-10 rounded-full border-4 border-purple-500/30 border-t-purple-400 animate-spin" />
               <span className="text-[11px] font-bold tracking-widest text-purple-300/80 uppercase">
-                Loading clip...
+                Loading media clip...
               </span>
             </div>
           )}
 
           {/* Error Overlay */}
           {hasError && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 pointer-events-none">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 pointer-events-none bg-black/80">
               <span className="text-3xl">⚠️</span>
               <span className="text-xs font-bold text-red-400/80 uppercase tracking-widest">
                 Could not load clip
@@ -299,37 +299,39 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
             </div>
           )}
 
-          {/* Audio-Only Visualizer Overlay */}
+          {/* Audio-Only Soundstage Visualizer Overlay (for audio files & dialogues) */}
           {isAudioOnly && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10 pointer-events-none">
-              <div className="flex items-end gap-1 h-12">
-                {Array.from({ length: 12 }).map((_, i) => (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-20 pointer-events-none bg-[#090b1c]/90 backdrop-blur-md rounded-[24px] p-6">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-purple-600 to-pink-500 text-3xl shadow-[0_0_30px_rgba(168,85,247,0.5)] animate-pulse">
+                🎙️
+              </div>
+              <div className="flex items-end gap-1.5 h-12">
+                {Array.from({ length: 16 }).map((_, i) => (
                   <div
                     key={i}
-                    className="w-1.5 rounded-full bg-purple-400 animate-pulse"
+                    className="w-1.5 rounded-full bg-gradient-to-t from-purple-500 to-cyan-400 animate-pulse"
                     style={{
-                      height: `${20 + Math.sin(i * 0.8) * 18 + 10}px`,
-                      animationDelay: `${i * 80}ms`,
-                      animationDuration: `${600 + i * 60}ms`,
+                      height: `${15 + Math.sin(i * 0.7) * 25 + 10}px`,
+                      animationDelay: `${i * 65}ms`,
+                      animationDuration: `${550 + (i % 5) * 80}ms`,
                     }}
                   />
                 ))}
               </div>
-              <span className="text-[11px] font-bold tracking-widest text-purple-300 uppercase">
-                🎵 Audio Clip Playing
+              <span className="text-xs font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-pink-300 to-cyan-300 uppercase">
+                🔊 DIALOGUE AUDIO SOUNDSTAGE
               </span>
             </div>
           )}
 
           {/* Video Container */}
           <div
-            className="relative overflow-hidden bg-black/90 rounded-[24px] flex items-center justify-center w-full"
-            style={{ minHeight: '260px', maxHeight: '75vh' }}
+            className="relative overflow-hidden bg-black rounded-[24px] flex items-center justify-center w-full"
+            style={{ minHeight: '280px', maxHeight: '75vh' }}
           >
             {/*
              * ALWAYS VISIBLE VIDEO ELEMENT
-             * Direct src attribute in JSX so browser initiates load immediately.
-             * opacity: 1 ensures video frames are rendered visibly as soon as decoded.
+             * Standard 2D compositor styling (no translateZ transform blackout)
              */}
             <video
               ref={videoRef}
@@ -340,17 +342,14 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
               disablePictureInPicture
               controlsList="nofullscreen noremoteplayback nodownload noplaybackrate"
               style={{
-                display: 'block',
+                display: isAudioOnly ? 'none' : 'block',
                 width: '100%',
                 height: 'auto',
                 maxWidth: '100%',
                 maxHeight: '75vh',
-                minHeight: '260px',
+                minHeight: '280px',
                 objectFit: 'contain',
                 borderRadius: '24px',
-                opacity: 1, // ALWAYS VISIBLE
-                transform: 'translateZ(0)',
-                backfaceVisibility: 'hidden',
               }}
               className="movie-player pointer-events-none select-none"
             />
@@ -358,7 +357,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
             {/* Status Badge */}
             <div className="absolute top-4 right-4 flex items-center gap-2 rounded-full bg-purple-500/20 border border-purple-500/50 px-3.5 py-1 text-xs font-bold text-purple-300 backdrop-blur-md shadow-lg shadow-purple-500/20 pointer-events-none z-30">
               <span className={`h-2 w-2 rounded-full ${isLoaded ? 'bg-green-400' : 'bg-purple-400 animate-pulse'}`} />
-              MOVIE VIDEO STAGE
+              {isAudioOnly ? 'AUDIO STAGE' : 'MOVIE VIDEO STAGE'}
             </div>
           </div>
         </motion.div>
