@@ -2,9 +2,9 @@
  * SpeechSynthesizer — Browser AI Host Voice Engine
  * ─────────────────────────────────────────────────────────────────────────────
  * Clean & reliable Web Speech API engine:
+ * - Automatically speaks on page load without requiring any overlay clicks.
  * - Retains active utterance in class property to prevent Chrome Garbage Collection bug.
- * - Always calls synth.resume() before speaking.
- * - Gracefully speaks default en-US voice even if getVoices() is empty initially.
+ * - Calls synth.resume() automatically.
  */
 
 class SpeechSynthesizerService {
@@ -19,18 +19,11 @@ class SpeechSynthesizerService {
       this.loadVoices();
 
       if (this.synth.onvoiceschanged !== undefined) {
-        this.synth.onvoiceschanged = () => this.loadVoices();
+        this.synth.onvoiceschanged = () => {
+          this.loadVoices();
+          if (this.synth) this.synth.resume();
+        };
       }
-
-      // Unlock speech synthesis context on user gesture
-      const unlock = () => {
-        if (this.synth) {
-          this.synth.resume();
-        }
-      };
-      window.addEventListener('click', unlock, { passive: true });
-      window.addEventListener('touchstart', unlock, { passive: true });
-      window.addEventListener('keydown', unlock, { passive: true });
     }
   }
 
@@ -72,11 +65,14 @@ class SpeechSynthesizerService {
 
       const synth = window.speechSynthesis;
 
-      // Resume synth if paused by browser autoplay policy
-      synth.resume();
-      synth.cancel(); // Clear queue
+      // Force resume synth for immediate automatic speech on load
+      try {
+        synth.resume();
+        synth.cancel();
+      } catch (e) {
+        console.error(e);
+      }
 
-      // Load voice if available
       this.loadVoices();
 
       const utterance = new SpeechSynthesisUtterance(text);
@@ -89,7 +85,7 @@ class SpeechSynthesizerService {
         utterance.voice = this.voice;
       }
 
-      // Retain utterance in class field to prevent Chrome Garbage Collection silence
+      // Retain utterance reference to prevent Chrome Garbage Collection silencing utterance
       this.activeUtterance = utterance;
 
       let finished = false;
@@ -104,9 +100,7 @@ class SpeechSynthesizerService {
       utterance.onend = done;
       utterance.onerror = done;
 
-      // Safety timeout
       const maxTimer = setTimeout(done, 4500);
-
       utterance.onend = () => {
         clearTimeout(maxTimer);
         done();
