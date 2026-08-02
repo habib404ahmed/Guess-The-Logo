@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { ROUTES } from '@/types';
@@ -8,16 +9,18 @@ import { AdminPage } from '@/pages/AdminPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { RootLayout } from '@/components/layout/RootLayout';
 import { PageTransition } from '@/components/layout/PageTransition';
+import { WelcomeScreen } from '@/components/home/WelcomeScreen';
 
 /**
  * AppRouter
  *
  * Defines all application routes and wraps them with:
  * - RootLayout    → ambient background, z-index context
+ * - WelcomeScreen → Opening ceremony (shown strictly ONCE on app load / refresh)
  * - PageTransition → AnimatePresence-based page transitions
  *
  * Route map:
- *   /              → HomePage
+ *   /              → WelcomeScreen (if first visit) -> HomePage
  *   /guess-logo    → GuessLogoPage
  *   /guess-movie   → GuessMoviePage
  *   /admin         → AdminPage
@@ -26,6 +29,16 @@ import { PageTransition } from '@/components/layout/PageTransition';
 export function AppRouter() {
   const location = useLocation();
 
+  // Check if welcome screen has already been shown in this browser session
+  const [welcomeShown, setWelcomeShown] = useState(() => {
+    return sessionStorage.getItem('welcomeScreenShown') === 'true';
+  });
+
+  const handleWelcomeComplete = () => {
+    sessionStorage.setItem('welcomeScreenShown', 'true');
+    setWelcomeShown(true);
+  };
+
   return (
     <RootLayout>
       <AnimatePresence mode="wait" initial={false}>
@@ -33,9 +46,13 @@ export function AppRouter() {
           <Route
             path={ROUTES.HOME}
             element={
-              <PageTransition>
-                <HomePage />
-              </PageTransition>
+              !welcomeShown ? (
+                <WelcomeScreen onComplete={handleWelcomeComplete} />
+              ) : (
+                <PageTransition>
+                  <HomePage />
+                </PageTransition>
+              )
             }
           />
           <Route
