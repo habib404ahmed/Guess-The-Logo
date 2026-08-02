@@ -27,7 +27,7 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
     const [isPlaying, setIsPlaying] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
 
-    // Always resolve a valid video URL
+    // Always resolve video source using dialogueSrc || videoUrl
     const activeMediaUrl = videoUrl || mediaSrc || DEFAULT_FALLBACK_VIDEO;
     const [videoSrc, setVideoSrc] = useState(activeMediaUrl);
 
@@ -35,11 +35,52 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
       setVideoSrc(activeMediaUrl);
     }, [activeMediaUrl]);
 
+    // Attach complete suite of requested HTML5 video event listeners & print video state metrics
+    useEffect(() => {
+      const v = videoRef.current;
+      if (!v) return;
+
+      const logVideoMetrics = (eventName: string) => {
+        console.log(`[Video Event: ${eventName}]`);
+        console.log("video.currentSrc =", v.currentSrc);
+        console.log("video.readyState =", v.readyState);
+        console.log("video.networkState =", v.networkState);
+        console.log("video.videoWidth =", v.videoWidth);
+        console.log("video.videoHeight =", v.videoHeight);
+        console.log("video.error =", v.error);
+      };
+
+      const events = [
+        'loadedmetadata',
+        'loadeddata',
+        'canplay',
+        'playing',
+        'error',
+        'stalled',
+        'waiting',
+        'emptied',
+      ];
+
+      const handlers = events.map((evt) => {
+        const handler = () => logVideoMetrics(evt);
+        v.addEventListener(evt, handler);
+        return { evt, handler };
+      });
+
+      // Initial state log
+      logVideoMetrics('initial_mount');
+
+      return () => {
+        handlers.forEach(({ evt, handler }) => {
+          v.removeEventListener(evt, handler);
+        });
+      };
+    }, [videoSrc]);
+
     // Robust play function supporting browser autoplay security policies
     const safePlay = () => {
       if (!videoRef.current) return;
       
-      // Try playing with sound first
       const promise = videoRef.current.play();
       if (promise !== undefined) {
         promise
@@ -47,8 +88,7 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
             setIsPlaying(true);
           })
           .catch((err) => {
-            console.warn('[Autoplay Policy] Unmuted play blocked by browser, attempting muted play:', err);
-            // Fallback: Mute video and play so video animation starts
+            console.warn('[Autoplay Policy] Unmuted play blocked, falling back to muted play:', err);
             if (videoRef.current) {
               videoRef.current.muted = true;
               setIsMuted(true);
@@ -79,7 +119,6 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
       },
     }));
 
-    // Auto-play when autoPlayOnMount triggers
     useEffect(() => {
       if (!autoPlayOnMount) {
         if (videoRef.current) {
@@ -143,7 +182,7 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
             }}
           />
 
-          {/* ── HTML5 VIDEO PLAYER WITH AUTOPLAY FALLBACK & UNMUTE CLICK ── */}
+          {/* ── HTML5 VIDEO PLAYER WITH ALL METRIC LISTENERS & SAFE AUTOPLAY ── */}
           <div
             className="relative w-full overflow-hidden bg-black/90 rounded-3xl aspect-video flex items-center justify-center cursor-pointer"
             onClick={handleVideoClick}

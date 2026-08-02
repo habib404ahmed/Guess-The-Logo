@@ -23,7 +23,7 @@ export function GuessMoviePage() {
   const [questions, setQuestions] = useState<MovieQuestion[]>([]);
   const [loading, setLoading]     = useState(true);
 
-  // Load movies ONLY via await getStoredMoviesAsync() to ensure IndexedDB video Blobs are fully restored before rendering Question 1
+  // Load movies ONLY via await getStoredMoviesAsync()
   useEffect(() => {
     let isMounted = true;
     async function loadMovies() {
@@ -64,14 +64,16 @@ export function GuessMoviePage() {
 
   const questionTime = settings.questionTimer || 25;
 
-  // 🔍 Exact Required Console Logs Before Rendering Question 1
+  // 🔍 Exact Required Property Logs for Current Movie
   useEffect(() => {
     if (currentQuestion) {
       const q = currentQuestion as ExtendedMovieQuestion;
-      console.log("Current Movie", currentQuestion);
-      console.log("dialogueSrc:", currentQuestion.dialogueSrc);
-      console.log("videoUrl:", currentQuestion.videoUrl);
-      console.log("videoBlob:", q.videoBlob || q._rawFile);
+      console.log(currentQuestion);
+      console.log("dialogueSrc =", currentQuestion.dialogueSrc);
+      console.log("videoUrl =", currentQuestion.videoUrl);
+      console.log("videoBlob =", q.videoBlob || q._rawFile);
+      console.log("fileName =", currentQuestion.fileName);
+      console.log("type =", currentQuestion.type);
     }
   }, [currentQuestion]);
 
@@ -106,17 +108,16 @@ export function GuessMoviePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, showCountdown]);
 
-  // ── Step-by-Step Callback: Fired ONLY AFTER Countdown & AI Voice Finish ──
+  // ── Step-by-Step Callback ─────────────────────────────────────────────────
   const handleCountdownComplete = useCallback(() => {
     setShowCountdown(false);
 
-    // Fade in video -> Wait 400ms -> Start video playback strictly AFTER countdown!
     setTimeout(() => {
       setAutoPlayVideo(true);
       if (mediaPlayerRef.current) {
         mediaPlayerRef.current.play();
       }
-      setIsControlsDisabled(false); // Enable controls only after video starts!
+      setIsControlsDisabled(false);
       start();
     }, 400);
   }, [start]);
@@ -133,7 +134,6 @@ export function GuessMoviePage() {
 
   const handleReveal = useCallback(() => {
     if (isRevealed || isControlsDisabled) return;
-    // Pause video clip on reveal
     if (mediaPlayerRef.current) {
       mediaPlayerRef.current.pause();
     }
@@ -154,7 +154,6 @@ export function GuessMoviePage() {
     if (index + 1 >= questions.length) {
       setIsComplete(true);
     } else {
-      // Reset for next question with countdown
       setIsControlsDisabled(true);
       setAutoPlayVideo(false);
       setShowCountdown(true);
@@ -172,7 +171,7 @@ export function GuessMoviePage() {
     setShowCountdown(true);
   }, []);
 
-  // ── Loading Screen (Do NOT render Question 1 until loading finishes) ──────
+  // ── Loading Screen ─────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -186,8 +185,6 @@ export function GuessMoviePage() {
       </div>
     );
   }
-
-  // ── Results Screen ─────────────────────────────────────────────────────────
 
   if (isComplete) {
     return (
@@ -214,7 +211,6 @@ export function GuessMoviePage() {
       totalSeconds={questionTime}
       accentColor="secondary"
     >
-      {/* ── 3-2-1-GO Stage Countdown Modal Overlay (Voice intro ONLY on index === 0) ── */}
       {showCountdown && (
         <StageCountdownModal
           speakAiIntro={index === 0}
@@ -222,10 +218,7 @@ export function GuessMoviePage() {
         />
       )}
 
-      {/* ── 2-COLUMN SPLIT-SCREEN LAYOUT ── */}
       <div className="w-full max-w-7xl mx-auto my-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center py-2">
-
-        {/* ── LEFT COLUMN (65%): Stage Media Player (Video / Dialogue) ── */}
         <div className="lg:col-span-7 flex flex-col items-center justify-center">
           <StageMediaPlayer
             ref={mediaPlayerRef}
@@ -241,7 +234,6 @@ export function GuessMoviePage() {
           />
         </div>
 
-        {/* ── RIGHT COLUMN (35%): Host Control & Answer Panel ── */}
         <div className="lg:col-span-5 flex flex-col justify-center">
           <RightControlPanel
             questionIndex={index + 1}
