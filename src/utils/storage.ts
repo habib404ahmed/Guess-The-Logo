@@ -306,20 +306,31 @@ export async function getStoredMoviesAsync(): Promise<MovieQuestion[]> {
       // Re-hydrate video Blob URLs from IndexedDB for each movie clip (cached in memory)
       const resolved = await Promise.all(
         movies.map(async (m, idx) => {
+          // 1. Check in-memory Object URL cache first (fastest path)
+          const cachedUrl = cachedObjectUrls.get(m.id);
+          if (cachedUrl) {
+            console.log(`[Storage] ✅ Cache hit for ${m.id} → ${cachedUrl.slice(0, 60)}`);
+            const extended: ExtendedMovieQuestion = {
+              ...m,
+              dialogueSrc: cachedUrl,
+              videoUrl: cachedUrl,
+              video: cachedUrl,
+              src: cachedUrl,
+              media: cachedUrl,
+            };
+            return extended;
+          }
+
+          // 2. Fetch raw blob from IndexedDB
           const dbStart = performance.now();
           const blob = await getMediaBlob(m.id);
           const dbEnd = performance.now();
-          console.log(`[Diagnostics] IndexedDB loading time: ${(dbEnd - dbStart).toFixed(2)}ms`);
+          console.log(`[Storage] IndexedDB fetch for ${m.id}: ${blob ? `${blob.size} bytes` : 'NOT FOUND'} | ${(dbEnd - dbStart).toFixed(2)}ms`);
 
-          if (blob) {
-            const blobStart = performance.now();
-            let objectUrl = cachedObjectUrls.get(m.id);
-            if (!objectUrl) {
-              objectUrl = URL.createObjectURL(blob);
-              cachedObjectUrls.set(m.id, objectUrl);
-            }
-            const blobEnd = performance.now();
-            console.log(`[Diagnostics] Blob loading time: ${(blobEnd - blobStart).toFixed(2)}ms`);
+          if (blob && blob.size > 0) {
+            const objectUrl = URL.createObjectURL(blob);
+            cachedObjectUrls.set(m.id, objectUrl);
+            console.log(`[Storage] ✅ Created blob URL for ${m.id}: ${objectUrl.slice(0, 60)}`);
 
             const extended: ExtendedMovieQuestion = {
               ...m,
@@ -336,8 +347,20 @@ export async function getStoredMoviesAsync(): Promise<MovieQuestion[]> {
             return extended;
           }
 
+          // 3. Blob not found in IndexedDB — never use old expired blob: URLs as fallback
+          //    because they are invalid in a new session. Use sample video instead.
           const fallbackSrc = DEFAULT_SAMPLE_VIDEOS[idx % DEFAULT_SAMPLE_VIDEOS.length];
-          const validSrc = m.videoUrl || m.dialogueSrc || fallbackSrc;
+
+          // Only keep non-blob stored URLs (e.g. https:// sample URLs)
+          const storedUrl = m.videoUrl && !m.videoUrl.startsWith('blob:')
+            ? m.videoUrl
+            : m.dialogueSrc && !m.dialogueSrc.startsWith('blob:')
+              ? m.dialogueSrc
+              : null;
+
+          const validSrc = storedUrl || fallbackSrc;
+          console.warn(`[Storage] ⚠ No blob for ${m.id} — using fallback: ${validSrc}`);
+
           const extended: ExtendedMovieQuestion = {
             ...m,
             dialogueSrc: validSrc,
