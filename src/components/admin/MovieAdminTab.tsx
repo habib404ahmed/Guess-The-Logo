@@ -57,12 +57,6 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
   const [progress, setProgress]       = useState(0);
   const [toastMessage, setToastMessage] = useState<{ text: string; isError?: boolean } | null>(null);
 
-  // Modal preview state
-  const [previewMedia, setPreviewMedia] = useState<{
-    title: string;
-    src: string;
-  } | null>(null);
-
   const folderInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef   = useRef<HTMLInputElement>(null);
 
@@ -218,7 +212,6 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
 
   // ── Save & Validate All Changes ──
   const handleSaveAll = () => {
-    // Validation: Movie Name & Dialogue Text are required!
     for (let i = 0; i < movies.length; i++) {
       const m = movies[i];
       if (!m.movieTitle || m.movieTitle.trim() === '') {
@@ -346,10 +339,11 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
           onUpdateMovies(newOrder);
           saveStoredMovies(newOrder);
         }}
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-5"
       >
         {movies.map((movie, idx) => {
           const isVideo =
+            !movie.fileName ||
             /\.(mp4|mov|webm|mkv)$/i.test(movie.dialogueSrc) ||
             movie.dialogueSrc.startsWith('data:video/') ||
             (movie.fileName && /\.(mp4|mov|webm)$/i.test(movie.fileName));
@@ -390,15 +384,19 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() =>
-                      setPreviewMedia({
-                        title: movie.movieTitle,
-                        src: movie.dialogueSrc,
-                      })
-                    }
+                    onClick={() => {
+                      const el = document.getElementById(`video-player-${movie.id}`) as HTMLMediaElement;
+                      if (el) {
+                        if (el.paused) {
+                          el.play();
+                        } else {
+                          el.pause();
+                        }
+                      }
+                    }}
                     className="btn btn-sm btn-outline text-purple-300 border-purple-500/30 hover:bg-purple-500/20"
                   >
-                    ▶️ Preview
+                    ▶️ Play / Pause
                   </button>
 
                   <button
@@ -411,7 +409,36 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
                 </div>
               </div>
 
-              {/* Row 2: Editable Fields (Movie Name, Dialogue Text, Optional Hint) */}
+              {/* Row 2: HTML5 Video Player (Rendered IMMEDIATELY on Import & Load) */}
+              <div className="w-full flex flex-col gap-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  🎬 Video Player Preview (First Frame Poster)
+                </span>
+
+                <div className="relative w-full aspect-video max-h-64 overflow-hidden rounded-2xl bg-black/80 border border-white/15 flex items-center justify-center">
+                  {isVideo ? (
+                    <video
+                      id={`video-player-${movie.id}`}
+                      src={movie.dialogueSrc}
+                      controls
+                      preload="metadata"
+                      playsInline
+                      autoPlay={false}
+                      className="h-full w-full object-contain rounded-xl"
+                    />
+                  ) : (
+                    <audio
+                      id={`video-player-${movie.id}`}
+                      src={movie.dialogueSrc}
+                      controls
+                      preload="metadata"
+                      className="w-full px-4"
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Row 3: Editable Fields (Movie Name, Dialogue Text, Optional Hint) */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                 {/* 🎬 Movie Name (Required) */}
                 <div className="md:col-span-4 flex flex-col gap-1">
@@ -461,47 +488,6 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
           );
         })}
       </Reorder.Group>
-
-      {/* ── Preview Video Modal ── */}
-      {previewMedia && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative w-full max-w-2xl rounded-3xl border border-purple-500/40 bg-[#0b0f24] p-6 shadow-2xl flex flex-col gap-4"
-          >
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <h3 className="text-lg font-bold text-white">
-                🎬 Preview Clip: {previewMedia.title}
-              </h3>
-              <button
-                onClick={() => setPreviewMedia(null)}
-                className="rounded-full bg-white/10 p-2 text-slate-300 hover:bg-white/20"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black flex items-center justify-center">
-              <video
-                src={previewMedia.src}
-                controls
-                autoPlay
-                className="h-full w-full object-contain"
-              />
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                className="btn btn-secondary"
-                onClick={() => setPreviewMedia(null)}
-              >
-                Close Preview
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
     </div>
   );
 }
