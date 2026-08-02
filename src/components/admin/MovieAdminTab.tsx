@@ -227,8 +227,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
       }
       return q;
     });
-    onUpdateMovies(updated);
-    saveStoredMovies(updated);
+    onUpdateMovies(updated); // AdminPage.handleUpdateMovies handles saving
     updateSaveTimestamp();
   };
 
@@ -236,15 +235,11 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
   const handleDialogueTextChange = (id: string, newText: string) => {
     const updated = movies.map((q) => {
       if (q.id === id) {
-        return {
-          ...q,
-          dialogueText: newText,
-        };
+        return { ...q, dialogueText: newText };
       }
       return q;
     });
-    onUpdateMovies(updated);
-    saveStoredMovies(updated);
+    onUpdateMovies(updated); // AdminPage.handleUpdateMovies handles saving
     updateSaveTimestamp();
   };
 
@@ -252,15 +247,11 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
   const handleHintChange = (id: string, newHint: string) => {
     const updated = movies.map((q) => {
       if (q.id === id) {
-        return {
-          ...q,
-          optionalHint: newHint,
-        };
+        return { ...q, optionalHint: newHint };
       }
       return q;
     });
-    onUpdateMovies(updated);
-    saveStoredMovies(updated);
+    onUpdateMovies(updated); // AdminPage.handleUpdateMovies handles saving
     updateSaveTimestamp();
   };
 

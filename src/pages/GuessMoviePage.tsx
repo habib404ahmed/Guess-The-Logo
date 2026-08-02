@@ -60,10 +60,7 @@ export function GuessMoviePage() {
     return questions[index];
   }, [questions, index]);
 
-  // Memoize next question for background video preloading (<100ms instant startup)
-  const nextQuestion = useMemo(() => {
-    return index + 1 < questions.length ? questions[index + 1] : null;
-  }, [questions, index]);
+
 
   const dialogue = currentQuestion ? movieDialogues[currentQuestion.id] : null;
   const allLines = useMemo(() => {
@@ -213,7 +210,16 @@ export function GuessMoviePage() {
 
   if (!currentQuestion) return null;
 
+  // Active video URL — prefer dialogueSrc (set to Object URL by getStoredMoviesAsync)
   const activeVideoUrl = currentQuestion.dialogueSrc || currentQuestion.videoUrl || '';
+
+  if (!activeVideoUrl) {
+    // This should never happen if storage.ts is working correctly.
+    // If you see this warning, check the [Storage] logs above for blob load failures.
+    console.warn(`[GuessMoviePage] ⚠ No video URL for question id=${currentQuestion.id}. Check IndexedDB blob store.`);
+  } else {
+    console.log(`[GuessMoviePage] Question ${index + 1} | id=${currentQuestion.id} | url=${activeVideoUrl.slice(0, 60)}`);
+  }
 
   return (
     <ChallengeLayout
@@ -229,20 +235,6 @@ export function GuessMoviePage() {
         <StageCountdownModal
           speakAiIntro={index === 0}
           onComplete={handleCountdownComplete}
-        />
-      )}
-
-      {/* 🚀 BACKGROUND PRELOADER FOR NEXT QUESTION VIDEO (<100ms INSTANT PLAYBACK) */}
-      {nextQuestion && (
-        <video
-          key={`preload-${nextQuestion.id}`}
-          src={nextQuestion.dialogueSrc || nextQuestion.videoUrl}
-          preload="auto"
-          className="hidden"
-          aria-hidden="true"
-          onLoadedData={() => {
-            console.log(`[Background Preloader] Next question (${nextQuestion.id}) pre-buffered into browser memory!`);
-          }}
         />
       )}
 
