@@ -87,8 +87,7 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
             setIsPlaying(true);
           })
           .catch((err) => {
-            console.warn('[Autoplay] Retrying unmuted playback on user interaction:', err);
-            // Retry playing with audio unmuted on fallback
+            console.warn('[Autoplay] Unmuted play blocked, retrying playback:', err);
             if (videoRef.current) {
               videoRef.current.muted = false;
               videoRef.current.play().catch(() => {});
@@ -162,17 +161,19 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
             }}
           />
 
-          {/* ── UNMUTED BY DEFAULT & NO PLAY/PAUSE BUTTON OVERLAY ── */}
+          {/* ── CLEAN VIDEO SCREEN: NO PLAY, PAUSE, MUTE, OR TIMELINE CONTROLS BARS ── */}
           <div className="relative w-full overflow-hidden bg-black/90 rounded-3xl aspect-video flex items-center justify-center transform-gpu translate-z-0">
             <video
               ref={videoRef}
               src={videoSrc}
+              controls={false}
               playsInline
               muted={false}
               autoPlay={true}
               preload="auto"
               disablePictureInPicture
-              className="h-full w-full object-contain rounded-3xl movie-player transform-gpu translate-z-0"
+              controlsList="nofullscreen noremoteplayback nodownload noplaybackrate"
+              className="h-full w-full object-contain rounded-3xl movie-player transform-gpu translate-z-0 pointer-events-none select-none"
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
               onEnded={() => setIsPlaying(false)}
