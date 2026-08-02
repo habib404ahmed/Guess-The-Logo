@@ -75,8 +75,8 @@ export function RightControlPanel({
         return (
           <span
             key={i}
-            className="text-cyan-400"
-            style={{ textShadow: '0 0 12px rgba(0, 240, 255, 0.8)' }}
+            className="text-[#00f0ff]"
+            style={{ textShadow: '0 0 16px rgba(0, 240, 255, 0.9)' }}
           >
             {part}
           </span>
@@ -90,43 +90,43 @@ export function RightControlPanel({
     <motion.div
       layout
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className="relative flex flex-col gap-5 w-full items-stretch p-6 rounded-3xl backdrop-blur-3xl select-none"
+      className="relative flex flex-col gap-6 w-full items-stretch p-8 lg:p-10 rounded-[32px] backdrop-blur-3xl select-none"
       style={{
         background: 'linear-gradient(145deg, rgba(14, 12, 35, 0.92) 0%, rgba(6, 8, 24, 0.96) 100%)',
         border: `2px solid ${borderColor}`,
         boxShadow: `0 20px 60px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.25), 0 0 45px ${glowColor}`,
-        clipPath: 'polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px)',
+        clipPath: 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)',
       }}
     >
       {/* HUD Chamfered Corner Markers */}
-      <div className="pointer-events-none absolute top-3 left-3 h-3.5 w-3.5 border-t-2 border-l-2 border-purple-400 z-20" />
-      <div className="pointer-events-none absolute top-3 right-3 h-3.5 w-3.5 border-t-2 border-r-2 border-purple-400 z-20" />
-      <div className="pointer-events-none absolute bottom-3 left-3 h-3.5 w-3.5 border-b-2 border-l-2 border-purple-400 z-20" />
-      <div className="pointer-events-none absolute bottom-3 right-3 h-3.5 w-3.5 border-b-2 border-r-2 border-purple-400 z-20" />
+      <div className="pointer-events-none absolute top-4 left-4 h-4 w-4 border-t-2 border-l-2 border-purple-400 z-20" />
+      <div className="pointer-events-none absolute top-4 right-4 h-4 w-4 border-t-2 border-r-2 border-purple-400 z-20" />
+      <div className="pointer-events-none absolute bottom-4 left-4 h-4 w-4 border-b-2 border-l-2 border-purple-400 z-20" />
+      <div className="pointer-events-none absolute bottom-4 right-4 h-4 w-4 border-b-2 border-r-2 border-purple-400 z-20" />
 
-      {/* ── 1. Top Header inside Right Card (Category + Question Badge) ── */}
+      {/* ── 1. Top Row Header (Category + Question Badge) ── */}
       <div className="flex items-center justify-between">
-        {/* Left: Chip Icon + Category Label & Value */}
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/15 border border-cyan-400/40 text-cyan-400 text-lg shadow-[0_0_15px_rgba(0,240,255,0.3)]">
+        {/* Left: Chip Icon + CATEGORY Label & Technology Value */}
+        <div className="flex items-center gap-3.5">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-500/15 border border-cyan-400/40 text-cyan-400 text-xl shadow-[0_0_20px_rgba(0,240,255,0.35)]">
             ⚙️
           </div>
           <div className="flex flex-col leading-none">
-            <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">
+            <span className="text-xs font-black tracking-widest text-[#38bdf8] uppercase">
               CATEGORY
             </span>
             <span
-              className="text-base font-black tracking-tight text-cyan-400 mt-1 uppercase"
-              style={{ textShadow: '0 0 12px rgba(0,240,255,0.7)' }}
+              className="text-lg lg:text-xl font-black tracking-tight text-[#00f0ff] mt-1 uppercase"
+              style={{ textShadow: '0 0 14px rgba(0,240,255,0.8)' }}
             >
               {categoryOrGenre.replace('CATEGORY:', '').trim()}
             </span>
           </div>
         </div>
 
-        {/* Right: Question Badge */}
+        {/* Right: QUESTION Glass Badge */}
         <div
-          className="flex items-center justify-center px-4 py-1.5 rounded-full text-xs font-black text-white shadow-xl"
+          className="flex items-center justify-center px-4 py-1.5 rounded-full text-xs font-black text-white shadow-xl backdrop-blur-md"
           style={{
             background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.4), rgba(126, 34, 206, 0.4))',
             border: '1.5px solid rgba(168, 85, 247, 0.7)',
@@ -165,22 +165,25 @@ export function RightControlPanel({
         )}
       </AnimatePresence>
 
-      {/* ── 3. Question Label Container Box (Matches User Mockup Container) ── */}
+      {/* ── 3. Middle Section: Question Container Box ── */}
       {!isRevealed && (
         <div
-          className="relative flex flex-col items-center justify-center p-8 rounded-2xl border border-white/10 text-center min-h-[160px]"
+          className="relative flex flex-col items-center justify-center p-8 rounded-2xl border border-white/10 text-center min-h-[170px]"
           style={{
             background: 'radial-gradient(ellipse at center, rgba(12, 16, 38, 0.95) 0%, rgba(5, 7, 20, 0.98) 100%)',
-            boxShadow: 'inset 0 0 20px rgba(0,0,0,0.6)',
+            boxShadow: 'inset 0 0 25px rgba(0,0,0,0.7)',
           }}
         >
-          <div className="h-0.5 w-16 bg-gradient-to-r from-transparent via-cyan-400 to-transparent absolute top-0" />
+          <div className="h-0.5 w-20 bg-gradient-to-r from-transparent via-cyan-400 to-transparent absolute top-0" />
           <h2
-            className="text-2xl sm:text-3xl font-black text-white leading-snug tracking-tight"
-            style={{ fontFamily: 'Space Grotesk, system-ui, sans-serif' }}
+            className="text-2xl sm:text-3xl lg:text-[34px] font-extrabold text-white leading-snug tracking-tight"
+            style={{ fontFamily: 'Space Grotesk, Orbitron, sans-serif' }}
           >
             {renderQuestionText(questionLabel)}
           </h2>
+
+          {/* Thin Glowing Divider Line */}
+          <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-purple-500/40 to-transparent mt-6" />
         </div>
       )}
 
@@ -197,7 +200,7 @@ export function RightControlPanel({
               duration: 0.5,
               ease: [0.175, 0.885, 0.32, 1.275], // Dramatic bounce
             }}
-            className="relative w-full flex flex-col items-center justify-center gap-2.5 overflow-hidden rounded-3xl p-6 text-center backdrop-blur-2xl min-h-[160px]"
+            className="relative w-full flex flex-col items-center justify-center gap-2.5 overflow-hidden rounded-3xl p-6 text-center backdrop-blur-2xl min-h-[170px]"
             style={{
               background: 'linear-gradient(135deg, rgba(0,240,255,0.25), rgba(168,85,247,0.35))',
               border: `2px solid ${borderColor}`,
@@ -220,7 +223,7 @@ export function RightControlPanel({
             <h3
               className="relative z-10 font-black leading-tight tracking-tight text-white drop-shadow-xl"
               style={{
-                fontFamily: 'Space Grotesk, system-ui, sans-serif',
+                fontFamily: 'Space Grotesk, Orbitron, sans-serif',
                 fontSize: 'clamp(2rem, 3.5vw, 2.75rem)',
                 color: '#ffffff',
                 textShadow: '0 0 30px rgba(0,240,255,1), 0 0 60px rgba(168,85,247,0.9)',
@@ -245,7 +248,7 @@ export function RightControlPanel({
         )}
       </AnimatePresence>
 
-      {/* ── 5. Action Buttons (Reveal Answer vs Next Question) ── */}
+      {/* ── 5. AAA 90px Action Button (`REVEAL ANSWER`) ── */}
       <motion.div layout className="flex flex-col gap-3.5 w-full mt-1">
         {/* Replay Clip Button */}
         {showReplayButton && onReplay && (
@@ -256,12 +259,10 @@ export function RightControlPanel({
             disabled={isDisabled}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="btn btn-xl w-full overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed"
+            className="btn w-full overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed h-[70px] rounded-2xl font-extrabold text-white text-lg"
             style={{
-              height: '54px',
               background: 'rgba(255,255,255,0.08)',
               border: '1px solid rgba(255,255,255,0.22)',
-              color: '#ffffff',
               boxShadow: '0 4px 20px rgba(0,0,0,0.45)',
             }}
             whileHover={isDisabled ? {} : { scale: 1.02, y: -1 }}
@@ -270,13 +271,11 @@ export function RightControlPanel({
             onClick={handleReplayClick}
           >
             <span className="text-xl">▶️</span>
-            <span className="font-extrabold tracking-wide text-base">
-              REPLAY CLIP
-            </span>
+            <span>REPLAY CLIP</span>
           </motion.button>
         )}
 
-        {/* Action Button: Reveal Answer vs Next Question (1:1 Mockup Button Styling) */}
+        {/* Action Button: 90px Height, 24px Rounded, Blue-Purple Gradient, Light Sweep Shimmer */}
         <AnimatePresence mode="wait">
           {!isRevealed ? (
             <motion.button
@@ -288,21 +287,29 @@ export function RightControlPanel({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92 }}
               transition={{ duration: 0.2 }}
-              className="btn btn-xl shimmer group w-full overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-black text-white tracking-widest text-lg"
+              className="relative w-full overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3 font-extrabold text-white uppercase tracking-wider rounded-[24px] select-none cursor-pointer"
               style={{
-                height: '56px',
-                background: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 50%, #a855f7 100%)',
-                border: '2px solid #00f0ff',
-                boxShadow: '0 0 35px rgba(0, 240, 255, 0.7), inset 0 1px 0 rgba(255,255,255,0.4)',
-                borderRadius: '50px',
+                height: '90px',
+                background: 'linear-gradient(135deg, #00f0ff 0%, #3b82f6 50%, #a855f7 100%)',
+                border: '2px solid rgba(255, 255, 255, 0.4)',
+                boxShadow: '0 10px 40px rgba(0, 240, 255, 0.65), inset 0 2px 0 rgba(255, 255, 255, 0.5)',
+                fontSize: '22px',
               }}
-              whileHover={isDisabled ? {} : { scale: 1.02, filter: 'brightness(1.15)' }}
+              whileHover={isDisabled ? {} : { scale: 1.02, y: -3, filter: 'brightness(1.15)' }}
               whileTap={isDisabled ? {} : { scale: 0.98 }}
               onMouseEnter={() => !isDisabled && audioManager.playHover()}
               onClick={handleRevealClick}
             >
-              <span className="text-xl">🎯</span>
-              <span>REVEAL ANSWER</span>
+              {/* Shimmer Light Sweep Overlay */}
+              <div
+                className="pointer-events-none absolute inset-0 opacity-50 animate-shimmer"
+                style={{
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.6) 50%, transparent 100%)',
+                }}
+              />
+
+              <span className="text-3xl drop-shadow-md">🎯</span>
+              <span className="drop-shadow-lg">REVEAL ANSWER</span>
             </motion.button>
           ) : (
             <motion.button
@@ -314,21 +321,21 @@ export function RightControlPanel({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3, ease: [0, 0, 0.2, 1] }}
-              className="btn btn-xl group w-full overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-black text-white tracking-widest text-lg"
+              className="relative w-full overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3 font-extrabold text-white uppercase tracking-wider rounded-[24px] select-none cursor-pointer"
               style={{
-                height: '56px',
-                background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-                border: '2px solid #22c55e',
-                boxShadow: '0 0 35px rgba(34, 197, 94, 0.7)',
-                borderRadius: '50px',
+                height: '90px',
+                background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                border: '2px solid rgba(255, 255, 255, 0.4)',
+                boxShadow: '0 10px 40px rgba(34, 197, 94, 0.65), inset 0 2px 0 rgba(255, 255, 255, 0.5)',
+                fontSize: '22px',
               }}
-              whileHover={isDisabled ? {} : { scale: 1.02, filter: 'brightness(1.15)' }}
+              whileHover={isDisabled ? {} : { scale: 1.02, y: -3, filter: 'brightness(1.15)' }}
               whileTap={isDisabled ? {} : { scale: 0.98 }}
               onMouseEnter={() => !isDisabled && audioManager.playHover()}
               onClick={handleNextClick}
             >
               <span>{isLastQuestion ? '🏆 VIEW FINAL RESULTS' : 'NEXT QUESTION'}</span>
-              <span className="text-xl">➡️</span>
+              <span className="text-3xl">➡️</span>
             </motion.button>
           )}
         </AnimatePresence>
