@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { audioManager } from '@/utils/audioManager';
 import { speechSynthesizer } from '@/utils/speechSynthesizer';
+import { unlockMedia } from '@/utils/mediaUnlock';
 
 interface StageCountdownModalProps {
   onComplete: () => void;
@@ -22,6 +23,9 @@ export function StageCountdownModal({ onComplete, speakAiIntro = false }: StageC
 
   useEffect(() => {
     let isCancelled = false;
+
+    // Trigger media unlock on modal mount
+    unlockMedia();
 
     const runSequence = async () => {
       // Step 1: AI Voice Intro
@@ -69,7 +73,10 @@ export function StageCountdownModal({ onComplete, speakAiIntro = false }: StageC
   }, [speakAiIntro, onComplete]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-2xl overflow-hidden pointer-events-auto select-none">
+    <div
+      onClick={() => unlockMedia()}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-2xl overflow-hidden pointer-events-auto select-none cursor-pointer"
+    >
       {/* Ambient Pulsing Glow Orbs */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
         <div className="h-[550px] w-[550px] rounded-full bg-gradient-to-r from-purple-600/30 to-blue-600/30 blur-3xl animate-pulse" />

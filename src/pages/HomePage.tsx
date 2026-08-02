@@ -5,6 +5,7 @@ import { ROUTES } from '@/types';
 import { staggerContainer, staggerChild } from '@/animations/variants';
 import { useTheme } from '@/contexts/ThemeContext';
 import { speechSynthesizer } from '@/utils/speechSynthesizer';
+import { unlockMedia } from '@/utils/mediaUnlock';
 import { ChallengeCard } from '@/components/home/ChallengeCard';
 import { HeroTitle } from '@/components/home/HeroTitle';
 import { ControlBar } from '@/components/home/ControlBar';
@@ -70,7 +71,10 @@ export function HomePage() {
               accentColor="primary"
               questionCount={10}
               difficulty="Mixed"
-              onClick={() => navigate(ROUTES.GUESS_LOGO)}
+              onClick={() => {
+                unlockMedia();
+                navigate(ROUTES.GUESS_LOGO);
+              }}
               index={0}
             />
 
@@ -83,7 +87,10 @@ export function HomePage() {
               accentColor="secondary"
               questionCount={10}
               difficulty="Mixed"
-              onClick={() => navigate(ROUTES.GUESS_MOVIE)}
+              onClick={() => {
+                unlockMedia();
+                navigate(ROUTES.GUESS_MOVIE);
+              }}
               index={1}
             />
           </motion.div>

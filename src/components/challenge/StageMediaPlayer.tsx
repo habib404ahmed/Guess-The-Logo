@@ -93,17 +93,24 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
         }
       });
 
+      v.currentTime = 0;
       v.muted = false;
 
       try {
         await v.play();
         setIsPlaying(true);
+        console.log("Autoplay started");
       } catch (err) {
-        console.warn('[Autoplay Policy] Unmuted play blocked, retrying:', err);
+        console.log("Autoplay failed", err);
         if (v) {
-          v.muted = false;
-          await v.play().catch(() => {});
-          setIsPlaying(true);
+          try {
+            v.muted = false;
+            await v.play();
+            setIsPlaying(true);
+            console.log("Autoplay started");
+          } catch (e) {
+            console.log("Autoplay failed", e);
+          }
         }
       }
     };
@@ -247,7 +254,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
   },
 );
 
-// 7. Memoize video component so it re-renders ONLY when questionId, videoUrl, or mediaSrc changes
+// Memoize video component so it re-renders ONLY when questionId, videoUrl, or mediaSrc changes
 export const StageMediaPlayer = memo(
   StageMediaPlayerComponent,
   (prev, next) =>

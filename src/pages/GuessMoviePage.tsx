@@ -55,7 +55,7 @@ export function GuessMoviePage() {
   const mediaPlayerRef = useRef<StageMediaPlayerRef | null>(null);
   const { play, playRevealSequence, playNextSequence } = useSound();
 
-  // 7. Memoize current question so video component rerenders ONLY when currentQuestion.id changes
+  // Memoize current question so video component rerenders ONLY when currentQuestion.id changes
   const currentQuestion = useMemo(() => {
     return questions[index];
   }, [questions, index]);
@@ -70,7 +70,7 @@ export function GuessMoviePage() {
 
   const questionTime = settings.questionTimer || 25;
 
-  // 🔍 Log current movie details
+  // Log current movie details
   useEffect(() => {
     if (currentQuestion) {
       const q = currentQuestion as ExtendedMovieQuestion;
@@ -115,17 +115,19 @@ export function GuessMoviePage() {
   }, [index, showCountdown]);
 
   // ── Step-by-Step Callback: Countdown finishes -> AI voice finishes -> Auto play video with sound ──
-  const handleCountdownComplete = useCallback(() => {
+  const handleCountdownComplete = useCallback(async () => {
     setShowCountdown(false);
+    setAutoPlayVideo(true);
+    setIsControlsDisabled(false);
 
-    setTimeout(async () => {
-      setAutoPlayVideo(true);
-      if (mediaPlayerRef.current) {
+    if (mediaPlayerRef.current) {
+      try {
         await mediaPlayerRef.current.play();
+      } catch (err) {
+        console.log("Autoplay failed", err);
       }
-      setIsControlsDisabled(false);
-      start();
-    }, 400);
+    }
+    start();
   }, [start]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
