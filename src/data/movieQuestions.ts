@@ -3,7 +3,7 @@ import type { MovieQuestion } from '@/types';
 /**
  * Movie Questions
  * ─────────────────────────────────────────────────────────────────────────────
- * Each question shows a famous movie dialogue on screen.
+ * Each question shows a video clip / dialogue on screen.
  * Students guess which movie it's from.
  * Mix of Bollywood and Hollywood for freshers audience.
  */
@@ -11,13 +11,15 @@ export const movieQuestions: MovieQuestion[] = [
   {
     id: 'movie-01',
     type: 'movie',
-    dialogueSrc: '',
+    dialogueSrc: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
     movieTitle: 'The Dark Knight',
     releaseYear: 2008,
     genre: 'Superhero',
     difficulty: 'easy',
     points: 10,
     hint: 'DC Comics villain',
+    dialogueText: '"Why so serious? Let\'s put a smile on that face!"',
     options: [
       { id: 'a', label: 'Batman Begins',    isCorrect: false },
       { id: 'b', label: 'The Dark Knight',  isCorrect: true  },
@@ -28,13 +30,15 @@ export const movieQuestions: MovieQuestion[] = [
   {
     id: 'movie-02',
     type: 'movie',
-    dialogueSrc: '',
+    dialogueSrc: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
     movieTitle: 'Sholay',
     releaseYear: 1975,
     genre: 'Bollywood Action',
     difficulty: 'easy',
     points: 10,
     hint: 'Iconic Bollywood classic',
+    dialogueText: '"Kitne aadmi the? Jo darr gaya, samjho mar gaya."',
     options: [
       { id: 'a', label: 'Deewar',    isCorrect: false },
       { id: 'b', label: 'Mughal-E-Azam', isCorrect: false },
@@ -45,12 +49,14 @@ export const movieQuestions: MovieQuestion[] = [
   {
     id: 'movie-03',
     type: 'movie',
-    dialogueSrc: '',
+    dialogueSrc: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
     movieTitle: 'Forrest Gump',
     releaseYear: 1994,
     genre: 'Drama',
     difficulty: 'easy',
     points: 10,
+    dialogueText: '"Life is like a box of chocolates... you never know what you\'re gonna get."',
     options: [
       { id: 'a', label: 'Cast Away',     isCorrect: false },
       { id: 'b', label: 'Forrest Gump',  isCorrect: true  },
@@ -61,12 +67,14 @@ export const movieQuestions: MovieQuestion[] = [
   {
     id: 'movie-04',
     type: 'movie',
-    dialogueSrc: '',
+    dialogueSrc: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
     movieTitle: '3 Idiots',
     releaseYear: 2009,
     genre: 'Bollywood Comedy',
     difficulty: 'easy',
     points: 10,
+    dialogueText: '"All is well! Aal izz well!"',
     options: [
       { id: 'a', label: 'PK',          isCorrect: false },
       { id: 'b', label: 'Munna Bhai',  isCorrect: false },
@@ -77,12 +85,14 @@ export const movieQuestions: MovieQuestion[] = [
   {
     id: 'movie-05',
     type: 'movie',
-    dialogueSrc: '',
+    dialogueSrc: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
     movieTitle: 'Titanic',
     releaseYear: 1997,
     genre: 'Romance',
     difficulty: 'easy',
     points: 10,
+    dialogueText: '"I\'m the king of the world!"',
     options: [
       { id: 'a', label: 'The Notebook',  isCorrect: false },
       { id: 'b', label: 'Titanic',       isCorrect: true  },
@@ -93,12 +103,14 @@ export const movieQuestions: MovieQuestion[] = [
   {
     id: 'movie-06',
     type: 'movie',
-    dialogueSrc: '',
+    dialogueSrc: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
     movieTitle: 'Avengers: Endgame',
     releaseYear: 2019,
     genre: 'Superhero',
     difficulty: 'medium',
     points: 15,
+    dialogueText: '"Part of the journey is the end. I am Iron Man."',
     options: [
       { id: 'a', label: 'Avengers: Infinity War', isCorrect: false },
       { id: 'b', label: 'Iron Man 3',              isCorrect: false },
@@ -109,66 +121,19 @@ export const movieQuestions: MovieQuestion[] = [
   {
     id: 'movie-07',
     type: 'movie',
-    dialogueSrc: '',
+    dialogueSrc: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreet.mp4',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreet.mp4',
     movieTitle: 'KGF: Chapter 2',
     releaseYear: 2022,
     genre: 'Indian Action',
     difficulty: 'easy',
     points: 10,
+    dialogueText: '"My name is Rocky. Namma Rocky Bhai."',
     options: [
       { id: 'a', label: 'Pushpa',           isCorrect: false },
       { id: 'b', label: 'RRR',              isCorrect: false },
       { id: 'c', label: 'KGF: Chapter 2',   isCorrect: true  },
       { id: 'd', label: 'Baahubali',        isCorrect: false },
-    ],
-  },
-  {
-    id: 'movie-08',
-    type: 'movie',
-    dialogueSrc: '',
-    movieTitle: 'Spider-Man: No Way Home',
-    releaseYear: 2021,
-    genre: 'Superhero',
-    difficulty: 'medium',
-    points: 15,
-    options: [
-      { id: 'a', label: 'Spider-Man: Homecoming',   isCorrect: false },
-      { id: 'b', label: 'Spider-Man: No Way Home',  isCorrect: true  },
-      { id: 'c', label: 'Doctor Strange',            isCorrect: false },
-      { id: 'd', label: 'Into the Spider-Verse',     isCorrect: false },
-    ],
-  },
-  {
-    id: 'movie-09',
-    type: 'movie',
-    dialogueSrc: '',
-    movieTitle: 'Dilwale Dulhania Le Jayenge',
-    releaseYear: 1995,
-    genre: 'Bollywood Romance',
-    difficulty: 'medium',
-    points: 15,
-    hint: 'DDLJ',
-    options: [
-      { id: 'a', label: 'Kuch Kuch Hota Hai', isCorrect: false },
-      { id: 'b', label: 'Kabhi Khushi Kabhie Gham', isCorrect: false },
-      { id: 'c', label: 'DDLJ',               isCorrect: true  },
-      { id: 'd', label: 'Dil To Pagal Hai',   isCorrect: false },
-    ],
-  },
-  {
-    id: 'movie-10',
-    type: 'movie',
-    dialogueSrc: '',
-    movieTitle: 'Inception',
-    releaseYear: 2010,
-    genre: 'Sci-Fi Thriller',
-    difficulty: 'hard',
-    points: 20,
-    options: [
-      { id: 'a', label: 'Interstellar', isCorrect: false },
-      { id: 'b', label: 'The Matrix',   isCorrect: false },
-      { id: 'c', label: 'Inception',    isCorrect: true  },
-      { id: 'd', label: 'Tenet',        isCorrect: false },
     ],
   },
 ];
@@ -224,29 +189,6 @@ export const movieDialogues: Record<string, { lines: string[]; speaker: string }
     lines: [
       '"My name is Rocky."',
       '"Namma Rocky Bhai."',
-    ],
-  },
-  'movie-08': {
-    speaker: 'Peter Parker',
-    lines: [
-      '"With great power comes great responsibility."',
-      '"I\'m... different. We\'re all different."',
-    ],
-  },
-  'movie-09': {
-    speaker: 'Raj',
-    lines: [
-      '"Bade bade deshon mein..."',
-      '"...aisi choti choti baatein hoti rehti hain, Senorita."',
-    ],
-  },
-  'movie-10': {
-    speaker: 'Cobb',
-    lines: [
-      '"You\'re waiting for a train..."',
-      '"A train that will take you far away."',
-      '"You know where you hope this train will take you..."',
-      '"But you can\'t know for sure."',
     ],
   },
 };

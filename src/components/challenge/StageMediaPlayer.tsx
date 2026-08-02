@@ -37,12 +37,14 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
     // Exact video source shared between Video Player and Replay button
     const activeMediaUrl = videoUrl || mediaSrc || '';
 
-    // Detect if media is a video file, video Data URL, or video Blob URL
+    // Detect if media is a video file, video Data URL, HTTP video URL, or video Blob URL
     const isVideo =
       Boolean(activeMediaUrl) &&
       (
         activeMediaUrl.startsWith('blob:') ||
         activeMediaUrl.startsWith('data:video/') ||
+        activeMediaUrl.startsWith('http://') ||
+        activeMediaUrl.startsWith('https://') ||
         /\.(mp4|mov|webm|mkv|avi|m4v)$/i.test(activeMediaUrl) ||
         (fileName && /\.(mp4|mov|webm|mkv|avi|m4v)$/i.test(fileName)) ||
         !activeMediaUrl.startsWith('data:audio/')
