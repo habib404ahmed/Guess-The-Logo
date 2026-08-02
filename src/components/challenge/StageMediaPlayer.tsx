@@ -26,8 +26,13 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
 
-    // Always resolve a valid video URL (never fall back to a quote card!)
+    // Always resolve a valid video URL
     const activeMediaUrl = videoUrl || mediaSrc || DEFAULT_FALLBACK_VIDEO;
+    const [videoSrc, setVideoSrc] = useState(activeMediaUrl);
+
+    useEffect(() => {
+      setVideoSrc(activeMediaUrl);
+    }, [activeMediaUrl]);
 
     useImperativeHandle(ref, () => ({
       replay: () => {
@@ -68,7 +73,7 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
       return () => {
         if (videoRef.current) videoRef.current.pause();
       };
-    }, [activeMediaUrl, autoPlayOnMount]);
+    }, [videoSrc, autoPlayOnMount]);
 
     return (
       <div className="relative w-full max-w-2xl">
@@ -104,11 +109,11 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
             }}
           />
 
-          {/* ── ALWAYS RENDER HTML5 VIDEO PLAYER (NO CARDS / NO PLACEHOLDERS) ── */}
+          {/* ── ALWAYS RENDER HTML5 VIDEO PLAYER WITH ERROR AUTO-RECOVERY ── */}
           <div className="relative w-full overflow-hidden bg-black/80 rounded-3xl aspect-video flex items-center justify-center">
             <video
               ref={videoRef}
-              src={activeMediaUrl}
+              src={videoSrc}
               controls
               playsInline
               preload="metadata"
@@ -119,6 +124,12 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
               onEnded={() => setIsPlaying(false)}
+              onError={() => {
+                console.warn('[Video Player Error] Failed loading media source:', videoSrc);
+                if (videoSrc !== DEFAULT_FALLBACK_VIDEO) {
+                  setVideoSrc(DEFAULT_FALLBACK_VIDEO);
+                }
+              }}
             />
 
             {/* Status Indicator */}
