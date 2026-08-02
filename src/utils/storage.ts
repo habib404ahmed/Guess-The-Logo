@@ -320,7 +320,7 @@ export async function getStoredMoviesAsync(): Promise<MovieQuestion[]> {
           }
 
           const fallbackSrc = DEFAULT_SAMPLE_VIDEOS[idx % DEFAULT_SAMPLE_VIDEOS.length];
-          const validSrc = m.dialogueSrc && !m.dialogueSrc.startsWith('blob:') ? m.dialogueSrc : (m.videoUrl || fallbackSrc);
+          const validSrc = m.videoUrl || m.dialogueSrc || fallbackSrc;
           const extended: ExtendedMovieQuestion = {
             ...m,
             dialogueSrc: validSrc,
@@ -381,13 +381,13 @@ export async function saveStoredMoviesAsync(movies: ExtendedMovieQuestion[]): Pr
     }
   }
 
-  // 2. Clean metadata representation (strip out expired blob: URLs & huge base64 strings)
+  // 2. Clean metadata representation
   const cleanMetadata: MovieQuestion[] = movies.map((m) => {
     const isBlobUrl = m.dialogueSrc && m.dialogueSrc.startsWith('blob:');
     const isHuge = m.dialogueSrc && m.dialogueSrc.length > 50000;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { _rawFile, videoBlob, videoFile, file, ...rest } = m;
-    const srcToStore = isBlobUrl || isHuge ? '' : rest.dialogueSrc;
+    const srcToStore = isBlobUrl || isHuge ? rest.videoUrl || rest.dialogueSrc : rest.dialogueSrc;
     return {
       ...rest,
       dialogueSrc: srcToStore,
