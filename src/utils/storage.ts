@@ -306,13 +306,21 @@ export async function getStoredMoviesAsync(): Promise<MovieQuestion[]> {
       // Re-hydrate video Blob URLs from IndexedDB for each movie clip (cached in memory)
       const resolved = await Promise.all(
         movies.map(async (m, idx) => {
+          const dbStart = performance.now();
           const blob = await getMediaBlob(m.id);
+          const dbEnd = performance.now();
+          console.log(`[Diagnostics] IndexedDB loading time: ${(dbEnd - dbStart).toFixed(2)}ms`);
+
           if (blob) {
+            const blobStart = performance.now();
             let objectUrl = cachedObjectUrls.get(m.id);
             if (!objectUrl) {
               objectUrl = URL.createObjectURL(blob);
               cachedObjectUrls.set(m.id, objectUrl);
             }
+            const blobEnd = performance.now();
+            console.log(`[Diagnostics] Blob loading time: ${(blobEnd - blobStart).toFixed(2)}ms`);
+
             const extended: ExtendedMovieQuestion = {
               ...m,
               dialogueSrc: objectUrl,

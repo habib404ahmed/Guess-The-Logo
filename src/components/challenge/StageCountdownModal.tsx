@@ -12,13 +12,13 @@ interface StageCountdownModalProps {
 /**
  * StageCountdownModal
  * ─────────────────────────────────────────────────────────────────────────────
- * Strict Sequential Stage Intro & Countdown Engine:
- * 1. AI Host Voice speaks intro sequence ("Welcome to Movie Challenge... Watch clip carefully...")
+ * Zero-Delay Stage Intro & Countdown Engine:
+ * 1. AI Host Voice speaks intro non-blockingly in background (NEVER blocks video playback)
  * 2. Countdown 3... 2... 1... GO! displays with sub-bass impacts
- * 3. Triggers onComplete() to fade in & play video player
+ * 3. Triggers onComplete() to play video immediately
  */
 export function StageCountdownModal({ onComplete, speakAiIntro = false }: StageCountdownModalProps) {
-  const [phase, setPhase] = useState<'voice' | 'countdown'>('voice');
+  const [phase, setPhase] = useState<'countdown'>('countdown');
   const [count, setCount] = useState<number | 'GO'>(3);
 
   useEffect(() => {
@@ -27,39 +27,36 @@ export function StageCountdownModal({ onComplete, speakAiIntro = false }: StageC
     // Trigger media unlock on modal mount
     unlockMedia();
 
+    // Fire AI voice non-blockingly in background (NEVER BLOCKS STAGE COUNTDOWN OR VIDEO PLAYBACK)
+    if (speakAiIntro) {
+      speechSynthesizer.speakMovieIntroSequence().catch(() => {});
+    }
+
     const runSequence = async () => {
-      // Step 1: AI Voice Intro
-      if (speakAiIntro) {
-        setPhase('voice');
-        await speechSynthesizer.speakMovieIntroSequence();
-      }
-
-      if (isCancelled) return;
-
-      // Step 2: Start 3-2-1-GO Countdown
+      // Start 3-2-1-GO Countdown immediately without waiting for speech
       setPhase('countdown');
       setCount(3);
       audioManager.playBoomImpact();
 
-      await new Promise((res) => setTimeout(res, 1000));
+      await new Promise((res) => setTimeout(res, 900));
       if (isCancelled) return;
 
       setCount(2);
       audioManager.playBoomImpact();
 
-      await new Promise((res) => setTimeout(res, 1000));
+      await new Promise((res) => setTimeout(res, 900));
       if (isCancelled) return;
 
       setCount(1);
       audioManager.playBoomImpact();
 
-      await new Promise((res) => setTimeout(res, 1000));
+      await new Promise((res) => setTimeout(res, 900));
       if (isCancelled) return;
 
       setCount('GO');
       audioManager.playVictorySting();
 
-      await new Promise((res) => setTimeout(res, 800));
+      await new Promise((res) => setTimeout(res, 400));
       if (isCancelled) return;
 
       onComplete();
@@ -82,29 +79,6 @@ export function StageCountdownModal({ onComplete, speakAiIntro = false }: StageC
         <div className="h-[550px] w-[550px] rounded-full bg-gradient-to-r from-purple-600/30 to-blue-600/30 blur-3xl animate-pulse" />
       </div>
 
-      {phase === 'voice' && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 1.1 }}
-          className="relative flex flex-col items-center gap-4 text-center px-6"
-        >
-          <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-purple-500/20 border border-purple-500/50 text-4xl shadow-xl shadow-purple-500/20 animate-pulse">
-            🎙️
-          </div>
-          <h2
-            className="text-2xl sm:text-3xl font-black text-white tracking-wide"
-            style={{ fontFamily: 'Space Grotesk, Outfit, system-ui, sans-serif' }}
-          >
-            AI HOST ANNOUNCEMENT
-          </h2>
-          <div className="flex items-center gap-2 rounded-full bg-purple-500/15 border border-purple-500/30 px-4 py-1.5 text-xs font-bold text-purple-300">
-            <span className="h-2 w-2 rounded-full bg-purple-400 animate-ping" />
-            LISTEN CAREFULLY...
-          </div>
-        </motion.div>
-      )}
-
       {phase === 'countdown' && (
         <AnimatePresence mode="wait">
           <motion.div
@@ -112,7 +86,7 @@ export function StageCountdownModal({ onComplete, speakAiIntro = false }: StageC
             initial={{ opacity: 0, scale: 0.2, rotate: -10 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
             exit={{ opacity: 0, scale: 2.2, filter: 'blur(20px)' }}
-            transition={{ duration: 0.45, ease: [0.175, 0.885, 0.32, 1.275] }}
+            transition={{ duration: 0.35, ease: [0.175, 0.885, 0.32, 1.275] }}
             className="relative flex flex-col items-center justify-center text-center select-none"
           >
             <span

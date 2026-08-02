@@ -20,10 +20,31 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
   ({ mediaSrc, videoUrl, autoPlayOnMount = false }, ref) => {
     const videoRef = useRef<HTMLVideoElement | null>(null);
 
+    // Diagnostics tracking refs
+    const renderCountRef = useRef(0);
+    renderCountRef.current += 1;
+    console.log(`[Diagnostics] React render count: ${renderCountRef.current}`);
+
+    const questionLoadTimeRef = useRef(performance.now());
+    const canPlayTimeRef = useRef<number | null>(null);
+    const playTimeRef = useRef<number | null>(null);
+
     // Resolve stable video source URL
     const videoSrc = videoUrl || mediaSrc || DEFAULT_FALLBACK_VIDEO;
 
-    // Attach requestVideoFrameCallback() / requestAnimationFrame() for 60FPS sync without React state updates
+    // Preload video immediately when videoSrc changes
+    useEffect(() => {
+      questionLoadTimeRef.current = performance.now();
+      canPlayTimeRef.current = null;
+      playTimeRef.current = null;
+
+      const v = videoRef.current;
+      if (v) {
+        v.load(); // Immediately load video stream
+      }
+    }, [videoSrc]);
+
+    // Attach requestVideoFrameCallback() / requestAnimationFrame() for 60FPS sync
     useEffect(() => {
       const v = videoRef.current;
       if (!v) return;
@@ -31,36 +52,22 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
       let animFrameId: number | null = null;
       let callbackId: number | null = null;
 
-      const logVideoMetrics = (eventName: string) => {
-        const bufferedEnd = v.buffered.length > 0 ? v.buffered.end(0) : 0;
-        console.log(`[Video Event: ${eventName}]`);
-        console.log("video.readyState =", v.readyState);
-        console.log("video.networkState =", v.networkState);
-        console.log("video.currentSrc =", v.currentSrc);
-        console.log("video.videoWidth =", v.videoWidth);
-        console.log("video.videoHeight =", v.videoHeight);
-        console.log("video.paused =", v.paused);
-        console.log("video.buffered =", bufferedEnd);
+      const onCanPlay = () => {
+        canPlayTimeRef.current = performance.now();
+        const deltaLoadToCanPlay = canPlayTimeRef.current - questionLoadTimeRef.current;
+        console.log(`[Diagnostics] Time from question load → canplay: ${deltaLoadToCanPlay.toFixed(2)}ms`);
       };
 
-      const events = [
-        'loadedmetadata',
-        'loadeddata',
-        'canplay',
-        'playing',
-        'error',
-        'stalled',
-        'waiting',
-        'emptied',
-      ];
+      const onPlaying = () => {
+        const firstFrameTime = performance.now();
+        if (playTimeRef.current) {
+          const deltaPlayToFrame = firstFrameTime - playTimeRef.current;
+          console.log(`[Diagnostics] Time from play() → first frame: ${deltaPlayToFrame.toFixed(2)}ms`);
+        }
+      };
 
-      const handlers = events.map((evt) => {
-        const handler = () => logVideoMetrics(evt);
-        v.addEventListener(evt, handler);
-        return { evt, handler };
-      });
-
-      logVideoMetrics('initial_mount');
+      v.addEventListener('canplay', onCanPlay);
+      v.addEventListener('playing', onPlaying);
 
       // Hardware sync frame callback
       const onFrame = () => {
@@ -74,7 +81,6 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
       };
 
       const onPlay = () => {
-        logVideoMetrics('play');
         if ('requestVideoFrameCallback' in v) {
           callbackId = (v as any).requestVideoFrameCallback(onFrame);
         } else {
@@ -85,9 +91,8 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
       v.addEventListener('play', onPlay);
 
       return () => {
-        handlers.forEach(({ evt, handler }) => {
-          v.removeEventListener(evt, handler);
-        });
+        v.removeEventListener('canplay', onCanPlay);
+        v.removeEventListener('playing', onPlaying);
         v.removeEventListener('play', onPlay);
         if (animFrameId !== null) cancelAnimationFrame(animFrameId);
         if (callbackId !== null && 'cancelVideoFrameCallback' in v) {
@@ -119,6 +124,12 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
           v.addEventListener('canplay', handler, { once: true });
         }
       });
+
+      playTimeRef.current = performance.now();
+      if (canPlayTimeRef.current) {
+        const deltaCanPlayToPlay = playTimeRef.current - canPlayTimeRef.current;
+        console.log(`[Diagnostics] Time from canplay → play(): ${deltaCanPlayToPlay.toFixed(2)}ms`);
+      }
 
       v.currentTime = 0;
       v.muted = false;
@@ -220,7 +231,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
             }}
           />
 
-          {/* ── CLEAN GPU HARDWARE ACCELERATED VIDEO ELEMENT (NO REPAINT ANIMATIONS ON VIDEO ITSELF) ── */}
+          {/* ── GPU HARDWARE ACCELERATED VIDEO CONTAINER (EXPLICIT STYLING RULES) ── */}
           <div
             className="relative overflow-hidden bg-black/90 rounded-[24px] flex items-center justify-center transform-gpu translate-z-0"
             style={{
@@ -238,6 +249,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
               autoPlay={false}
               muted={false}
               preload="auto"
+              crossOrigin="anonymous"
               disablePictureInPicture
               controlsList="nofullscreen noremoteplayback nodownload noplaybackrate"
               style={{
@@ -247,8 +259,10 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
                 maxWidth: '100%',
                 maxHeight: '75vh',
                 objectFit: 'contain',
-                willChange: 'transform',
                 transform: 'translateZ(0)',
+                backfaceVisibility: 'hidden',
+                willChange: 'auto',
+                contain: 'layout paint size',
                 borderRadius: '24px',
               }}
               className="movie-player pointer-events-none select-none"
