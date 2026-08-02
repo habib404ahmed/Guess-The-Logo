@@ -3,7 +3,6 @@ import { movieDialogues } from '@/data/movieQuestions';
 import type { MovieQuestion } from '@/types';
 import { shuffle } from '@/utils';
 import {
-  getStoredMovies,
   getStoredMoviesAsync,
   getStoredSettings,
   type ExtendedMovieQuestion,
@@ -21,19 +20,22 @@ import { StageCountdownModal } from '@/components/challenge/StageCountdownModal'
 
 export function GuessMoviePage() {
   const [settings]  = useState(() => getStoredSettings());
-  const [questions, setQuestions] = useState<MovieQuestion[]>(() => {
-    const stored = getStoredMovies();
-    return settings.shuffleMovies ? shuffle([...stored]) : stored;
-  });
+  const [questions, setQuestions] = useState<MovieQuestion[]>([]);
+  const [loading, setLoading]     = useState(true);
 
-  // Ensure 100% of imported video clips load asynchronously from IndexedDB
+  // Load movies ONLY via await getStoredMoviesAsync() to ensure IndexedDB video Blobs are fully restored before rendering Question 1
   useEffect(() => {
     let isMounted = true;
-    getStoredMoviesAsync().then((loaded) => {
+    async function loadMovies() {
+      const loaded = await getStoredMoviesAsync();
       if (isMounted && loaded && loaded.length > 0) {
         setQuestions(settings.shuffleMovies ? shuffle([...loaded]) : loaded);
       }
-    });
+      if (isMounted) {
+        setLoading(false);
+      }
+    }
+    loadMovies();
     return () => {
       isMounted = false;
     };
@@ -62,27 +64,16 @@ export function GuessMoviePage() {
 
   const questionTime = settings.questionTimer || 25;
 
-  // 🔍 Exact Property Console Debugging Output Requested
+  // 🔍 Exact Required Console Logs Before Rendering Question 1
   useEffect(() => {
     if (currentQuestion) {
       const q = currentQuestion as ExtendedMovieQuestion;
-      console.log("Imported Movie", currentQuestion);
-      console.log("Movie Saved", currentQuestion);
-      console.log("Movie Loaded", currentQuestion);
       console.log("Current Movie", currentQuestion);
-      console.log("movie.video:", q.video);
-      console.log("movie.videoFile:", q.videoFile);
-      console.log("movie.videoBlob:", q.videoBlob);
-      console.log("movie.videoUrl:", q.videoUrl || q.dialogueSrc);
-      console.log("movie.videoPath:", q.videoPath);
-      console.log("movie.file:", q.file || q._rawFile);
-      console.log("movie.src:", q.src || q.dialogueSrc);
-      console.log("movie.media:", q.media || q.dialogueSrc);
-      console.log("Object.keys(movie):", Object.keys(currentQuestion));
-      console.log("Movie List:", questions);
-      console.log("Movie Count:", questions.length);
+      console.log("dialogueSrc:", currentQuestion.dialogueSrc);
+      console.log("videoUrl:", currentQuestion.videoUrl);
+      console.log("videoBlob:", q.videoBlob || q._rawFile);
     }
-  }, [currentQuestion, questions]);
+  }, [currentQuestion]);
 
   // ── Timer ──────────────────────────────────────────────────────────────────
   const { seconds, start, reset } = useCountdown({
@@ -181,6 +172,21 @@ export function GuessMoviePage() {
     setShowCountdown(true);
   }, []);
 
+  // ── Loading Screen (Do NOT render Question 1 until loading finishes) ──────
+
+  if (loading) {
+    return (
+      <div className="min-h-dvh flex flex-col items-center justify-center bg-[#060918] text-[#f0f4ff] select-none">
+        <div className="flex flex-col items-center gap-5 p-8 rounded-3xl backdrop-blur-2xl bg-white/5 border border-purple-500/30 shadow-[0_0_50px_rgba(168,85,247,0.2)]">
+          <div className="h-12 w-12 rounded-full border-4 border-purple-500/30 border-t-purple-400 animate-spin" />
+          <span className="text-base font-extrabold text-purple-300 tracking-widest uppercase">
+            Loading videos...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   // ── Results Screen ─────────────────────────────────────────────────────────
 
   if (isComplete) {
@@ -196,7 +202,7 @@ export function GuessMoviePage() {
 
   if (!currentQuestion) return null;
 
-  const activeVideoUrl = currentQuestion.videoUrl || currentQuestion.dialogueSrc;
+  const activeVideoUrl = currentQuestion.dialogueSrc || currentQuestion.videoUrl || '';
 
   return (
     <ChallengeLayout
