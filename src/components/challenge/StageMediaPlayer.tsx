@@ -25,6 +25,7 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
   ({ mediaSrc, videoUrl, autoPlayOnMount = false }, ref) => {
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [isMuted, setIsMuted] = useState(false);
 
     // Always resolve a valid video URL
     const activeMediaUrl = videoUrl || mediaSrc || DEFAULT_FALLBACK_VIDEO;
@@ -34,12 +35,39 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
       setVideoSrc(activeMediaUrl);
     }, [activeMediaUrl]);
 
+    // Robust play function supporting browser autoplay security policies
+    const safePlay = () => {
+      if (!videoRef.current) return;
+      
+      // Try playing with sound first
+      const promise = videoRef.current.play();
+      if (promise !== undefined) {
+        promise
+          .then(() => {
+            setIsPlaying(true);
+          })
+          .catch((err) => {
+            console.warn('[Autoplay Policy] Unmuted play blocked by browser, attempting muted play:', err);
+            // Fallback: Mute video and play so video animation starts
+            if (videoRef.current) {
+              videoRef.current.muted = true;
+              setIsMuted(true);
+              videoRef.current
+                .play()
+                .then(() => setIsPlaying(true))
+                .catch((e) => console.error('[Autoplay Error] Muted play also failed:', e));
+            }
+          });
+      }
+    };
+
     useImperativeHandle(ref, () => ({
       replay: () => {
         if (videoRef.current) {
           videoRef.current.currentTime = 0;
-          videoRef.current.play().catch(() => {});
-          setIsPlaying(true);
+          videoRef.current.muted = false;
+          setIsMuted(false);
+          safePlay();
         }
       },
       pause: () => {
@@ -47,14 +75,11 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
         setIsPlaying(false);
       },
       play: () => {
-        if (videoRef.current) {
-          videoRef.current.play().catch(() => {});
-          setIsPlaying(true);
-        }
+        safePlay();
       },
     }));
 
-    // Auto-play ONLY if autoPlayOnMount is explicitly true
+    // Auto-play when autoPlayOnMount triggers
     useEffect(() => {
       if (!autoPlayOnMount) {
         if (videoRef.current) {
@@ -65,18 +90,27 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
         return;
       }
 
-      setIsPlaying(true);
-      if (videoRef.current) {
-        videoRef.current.currentTime = 0;
-        videoRef.current.play().catch(() => setIsPlaying(false));
-      }
+      safePlay();
+
       return () => {
         if (videoRef.current) videoRef.current.pause();
       };
     }, [videoSrc, autoPlayOnMount]);
 
+    const handleVideoClick = () => {
+      if (!videoRef.current) return;
+      if (videoRef.current.paused) {
+        videoRef.current.muted = false;
+        setIsMuted(false);
+        safePlay();
+      } else {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+    };
+
     return (
-      <div className="relative w-full max-w-2xl">
+      <div className="relative w-full max-w-2xl select-none">
         <motion.div
           initial={{ opacity: 0, scale: 0.94 }}
           animate={{ opacity: 1, scale: 1, y: [0, -5, 0] }}
@@ -109,15 +143,18 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
             }}
           />
 
-          {/* ── ALWAYS RENDER HTML5 VIDEO PLAYER WITH ERROR AUTO-RECOVERY ── */}
-          <div className="relative w-full overflow-hidden bg-black/80 rounded-3xl aspect-video flex items-center justify-center">
+          {/* ── HTML5 VIDEO PLAYER WITH AUTOPLAY FALLBACK & UNMUTE CLICK ── */}
+          <div
+            className="relative w-full overflow-hidden bg-black/90 rounded-3xl aspect-video flex items-center justify-center cursor-pointer"
+            onClick={handleVideoClick}
+          >
             <video
               ref={videoRef}
               src={videoSrc}
               controls
               playsInline
-              preload="metadata"
-              autoPlay={false}
+              muted={isMuted}
+              preload="auto"
               controlsList="nodownload noplaybackrate noremoteplayback"
               disablePictureInPicture
               className="h-full w-full object-contain rounded-3xl movie-player"
@@ -131,6 +168,35 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
                 }
               }}
             />
+
+            {/* Play Overlay Button if Paused */}
+            {!isPlaying && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] transition-all hover:bg-black/20">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-600/80 border border-purple-400/60 text-white text-2xl shadow-xl shadow-purple-500/40 hover:scale-110 transition-transform">
+                  ▶
+                </div>
+                <span className="mt-3 text-xs font-black text-purple-200 tracking-widest uppercase">
+                  Click to Play Video Clip
+                </span>
+              </div>
+            )}
+
+            {/* Muted Warning Badge */}
+            {isMuted && isPlaying && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (videoRef.current) {
+                    videoRef.current.muted = false;
+                    setIsMuted(false);
+                  }
+                }}
+                className="absolute bottom-16 right-4 flex items-center gap-2 rounded-full bg-amber-500/20 border border-amber-500/50 px-4 py-1.5 text-xs font-extrabold text-amber-300 backdrop-blur-md shadow-lg shadow-amber-500/20 z-30 animate-bounce"
+              >
+                🔇 MUTED BY BROWSER — CLICK TO UNMUTE AUDIO
+              </button>
+            )}
 
             {/* Status Indicator */}
             {isPlaying && (
