@@ -7,6 +7,10 @@ export interface ExtendedMovieQuestion extends MovieQuestion {
   videoBlob?: Blob;
   videoFile?: File;
   videoPath?: string;
+  video?: string;
+  file?: File | Blob;
+  src?: string;
+  media?: string;
 }
 
 // ─── Storage Keys ─────────────────────────────────────────────────────────────
@@ -140,7 +144,7 @@ function dataURItoBlob(dataURI: string): Blob {
   return new Blob([ab], { type: mimeString });
 }
 
-// ─── In-Memory Cache (Instant Synchronous Access) ────────────────────────────
+// ─── In-Memory Cache ─────────────────────────────────────────────────────────
 
 let cachedMovies: MovieQuestion[] | null = null;
 let cachedLogos: LogoQuestion[] | null  = null;
@@ -148,7 +152,7 @@ let cachedLogos: LogoQuestion[] | null  = null;
 // ─── Settings Interface ──────────────────────────────────────────────────────
 
 export interface AppSettings {
-  questionTimer: number; // 10, 15, 20, 30
+  questionTimer: number;
   shuffleLogos: boolean;
   shuffleMovies: boolean;
   backgroundMusic: boolean;
@@ -273,7 +277,6 @@ export function getStoredMovies(): MovieQuestion[] {
 
 export async function getStoredMoviesAsync(): Promise<MovieQuestion[]> {
   try {
-    // Always fetch fresh metadata from IndexedDB/localStorage to guarantee Blobs are re-hydrated
     let movies = await getFromDB<MovieQuestion[]>(MOVIES_KEY);
     if (!movies || movies.length === 0) {
       movies = getStoredMovies();
@@ -286,23 +289,32 @@ export async function getStoredMoviesAsync(): Promise<MovieQuestion[]> {
           const blob = await getMediaBlob(m.id);
           if (blob) {
             const objectUrl = URL.createObjectURL(blob);
-            return {
+            const extended: ExtendedMovieQuestion = {
               ...m,
               dialogueSrc: objectUrl,
               videoUrl: objectUrl,
               videoBlob: blob,
               videoFile: blob as File,
+              file: blob,
               videoPath: m.fileName || `${m.movieTitle}.mp4`,
+              video: objectUrl,
+              src: objectUrl,
+              media: objectUrl,
             };
+            return extended;
           }
 
           const validSrc = m.dialogueSrc && !m.dialogueSrc.startsWith('blob:') ? m.dialogueSrc : (m.videoUrl || '');
-          return {
+          const extended: ExtendedMovieQuestion = {
             ...m,
             dialogueSrc: validSrc,
             videoUrl: validSrc,
             videoPath: m.fileName || `${m.movieTitle}.mp4`,
+            video: validSrc,
+            src: validSrc,
+            media: validSrc,
           };
+          return extended;
         }),
       );
 
@@ -330,10 +342,19 @@ export async function saveStoredMoviesAsync(movies: ExtendedMovieQuestion[]): Pr
 
   // 1. Save all raw binary video Blobs into IndexedDB BLOB_STORE_NAME
   for (const m of movies) {
-    if (m._rawFile) {
-      await saveMediaBlob(m.id, m._rawFile);
-    } else if (m.videoBlob) {
-      await saveMediaBlob(m.id, m.videoBlob);
+    const candidateBlob = m._rawFile || m.videoBlob || m.videoFile || m.file;
+    if (candidateBlob) {
+      await saveMediaBlob(m.id, candidateBlob);
+    } else if (m.dialogueSrc && m.dialogueSrc.startsWith('blob:')) {
+      try {
+        const response = await fetch(m.dialogueSrc);
+        const blob = await response.blob();
+        if (blob && blob.size > 0) {
+          await saveMediaBlob(m.id, blob);
+        }
+      } catch (err) {
+        console.warn(`Failed fetching blob URL for movie ${m.id}`, err);
+      }
     } else if (m.dialogueSrc && m.dialogueSrc.startsWith('data:')) {
       try {
         const blob = dataURItoBlob(m.dialogueSrc);
@@ -349,7 +370,7 @@ export async function saveStoredMoviesAsync(movies: ExtendedMovieQuestion[]): Pr
     const isBlobUrl = m.dialogueSrc && m.dialogueSrc.startsWith('blob:');
     const isHuge = m.dialogueSrc && m.dialogueSrc.length > 50000;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { _rawFile, videoBlob, videoFile, ...rest } = m;
+    const { _rawFile, videoBlob, videoFile, file, ...rest } = m;
     const srcToStore = isBlobUrl || isHuge ? '' : rest.dialogueSrc;
     return {
       ...rest,

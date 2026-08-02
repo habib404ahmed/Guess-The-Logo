@@ -62,15 +62,23 @@ export function GuessMoviePage() {
 
   const questionTime = settings.questionTimer || 25;
 
-  // 🔍 Exact Console Logs as Requested
+  // 🔍 Exact Property Console Debugging Output Requested
   useEffect(() => {
     if (currentQuestion) {
       const q = currentQuestion as ExtendedMovieQuestion;
+      console.log("Imported Movie", currentQuestion);
+      console.log("Movie Saved", currentQuestion);
+      console.log("Movie Loaded", currentQuestion);
       console.log("Current Movie", currentQuestion);
-      console.log("Video URL:", q.videoUrl || q.dialogueSrc);
-      console.log("Video Blob:", q.videoBlob || q._rawFile);
-      console.log("Video File:", q.videoFile || q._rawFile);
-      console.log("Video Path:", q.videoPath || q.fileName || q.dialogueSrc);
+      console.log("movie.video:", q.video);
+      console.log("movie.videoFile:", q.videoFile);
+      console.log("movie.videoBlob:", q.videoBlob);
+      console.log("movie.videoUrl:", q.videoUrl || q.dialogueSrc);
+      console.log("movie.videoPath:", q.videoPath);
+      console.log("movie.file:", q.file || q._rawFile);
+      console.log("movie.src:", q.src || q.dialogueSrc);
+      console.log("movie.media:", q.media || q.dialogueSrc);
+      console.log("Object.keys(movie):", Object.keys(currentQuestion));
       console.log("Movie List:", questions);
       console.log("Movie Count:", questions.length);
     }
