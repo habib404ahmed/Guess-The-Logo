@@ -57,19 +57,23 @@ export function GuessMoviePage() {
 
   const questionTime = settings.questionTimer || 25;
 
-  // Debug console logs as requested
+  // 🔍 Complete Data Flow Lifecycle Console Trace
   useEffect(() => {
     if (currentQuestion) {
-      console.log('🎥 [Movie Stage Debug]', {
-        'Current Question Index': index + 1,
-        'Movie Count': questions.length,
-        'Current Movie': currentQuestion,
-        'Video URL': currentQuestion.videoUrl || currentQuestion.dialogueSrc,
-        'Video Blob': (currentQuestion as unknown as Record<string, unknown>)._rawFile || 'Stored in IndexedDB',
-        'Video Exists': Boolean(currentQuestion.videoUrl || currentQuestion.dialogueSrc),
+      const activeVideoUrl = currentQuestion.videoUrl || currentQuestion.dialogueSrc;
+      console.log('🔍 [MOVIE DATA FLOW TRACE]', {
+        '1. Step': `Current Question #${index + 1} Loaded on Stage`,
+        '2. Movie ID': currentQuestion.id,
+        '3. Video Filename': currentQuestion.fileName || `${currentQuestion.movieTitle}.mp4`,
+        '4. Video Source': activeVideoUrl,
+        '5. Blob': (currentQuestion as unknown as Record<string, unknown>).videoBlob || (currentQuestion as unknown as Record<string, unknown>)._rawFile || 'Retrieved from IndexedDB',
+        '6. Object URL': activeVideoUrl,
+        '7. IndexedDB Key': `FresherArenaMediaDB_v3 -> media_blobs -> ${currentQuestion.id}`,
+        '8. localStorage Data': localStorage.getItem('fresher_arena_movies')?.slice(0, 100) + '...',
+        '9. Current Movie Object': currentQuestion,
       });
     }
-  }, [currentQuestion, index, questions.length]);
+  }, [currentQuestion, index]);
 
   // ── Timer ──────────────────────────────────────────────────────────────────
   const { seconds, start, reset } = useCountdown({
@@ -183,6 +187,8 @@ export function GuessMoviePage() {
 
   if (!currentQuestion) return null;
 
+  const activeVideoUrl = currentQuestion.videoUrl || currentQuestion.dialogueSrc;
+
   return (
     <ChallengeLayout
       title="Guess the Movie"
@@ -208,8 +214,8 @@ export function GuessMoviePage() {
         <div className="lg:col-span-7 flex flex-col items-center justify-center">
           <StageMediaPlayer
             ref={mediaPlayerRef}
-            mediaSrc={currentQuestion.dialogueSrc}
-            videoUrl={currentQuestion.videoUrl || currentQuestion.dialogueSrc}
+            mediaSrc={activeVideoUrl}
+            videoUrl={activeVideoUrl}
             fileName={currentQuestion.fileName}
             movieTitle={currentQuestion.movieTitle}
             genre={currentQuestion.genre}

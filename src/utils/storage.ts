@@ -4,6 +4,7 @@ import { movieQuestions as defaultMovieQuestions } from '@/data/movieQuestions';
 
 export interface ExtendedMovieQuestion extends MovieQuestion {
   _rawFile?: File | Blob;
+  videoBlob?: Blob;
 }
 
 // ─── Storage Keys ─────────────────────────────────────────────────────────────
@@ -285,13 +286,16 @@ export async function getStoredMoviesAsync(): Promise<MovieQuestion[]> {
           const blob = await getMediaBlob(m.id);
           if (blob) {
             const objectUrl = URL.createObjectURL(blob);
+            console.log(`[Storage Re-hydration] Successfully loaded video Blob for movie "${m.movieTitle}" (${m.id}) -> Object URL: ${objectUrl}`);
             return {
               ...m,
               dialogueSrc: objectUrl,
               videoUrl: objectUrl,
+              videoBlob: blob,
             };
           }
-          const validSrc = m.dialogueSrc && !m.dialogueSrc.startsWith('blob:') ? m.dialogueSrc : '';
+
+          const validSrc = m.dialogueSrc && !m.dialogueSrc.startsWith('blob:') ? m.dialogueSrc : (m.videoUrl || '');
           return {
             ...m,
             dialogueSrc: validSrc,
@@ -326,10 +330,15 @@ export async function saveStoredMoviesAsync(movies: ExtendedMovieQuestion[]): Pr
   for (const m of movies) {
     if (m._rawFile) {
       await saveMediaBlob(m.id, m._rawFile);
+      console.log(`[Storage Save] Saved _rawFile Blob for movie "${m.movieTitle}" (${m.id}) to IndexedDB`);
+    } else if (m.videoBlob) {
+      await saveMediaBlob(m.id, m.videoBlob);
+      console.log(`[Storage Save] Saved videoBlob for movie "${m.movieTitle}" (${m.id}) to IndexedDB`);
     } else if (m.dialogueSrc && m.dialogueSrc.startsWith('data:')) {
       try {
         const blob = dataURItoBlob(m.dialogueSrc);
         await saveMediaBlob(m.id, blob);
+        console.log(`[Storage Save] Saved dataURI Blob for movie "${m.movieTitle}" (${m.id}) to IndexedDB`);
       } catch (err) {
         console.warn(`Failed converting data URI blob for movie ${m.id}`, err);
       }
@@ -341,7 +350,7 @@ export async function saveStoredMoviesAsync(movies: ExtendedMovieQuestion[]): Pr
     const isBlobUrl = m.dialogueSrc && m.dialogueSrc.startsWith('blob:');
     const isHuge = m.dialogueSrc && m.dialogueSrc.length > 50000;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { _rawFile, ...rest } = m;
+    const { _rawFile, videoBlob, ...rest } = m;
     const srcToStore = isBlobUrl || isHuge ? '' : rest.dialogueSrc;
     return {
       ...rest,
