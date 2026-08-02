@@ -3,7 +3,7 @@
  * ───────────────────────────────────────────────────────────────────────────
  * KEY ARCHITECTURE DECISIONS:
  *  1. ONE persistent <video> element — never unmounted, never recreated
- *  2. Object URL in-memory cache — one createObjectURL per questionId, ever
+ *  2. src set both in JSX (immediate, synchronous) AND via imperative ref
  *  3. video.load() fires IMMEDIATELY when src is assigned (before countdown)
  *  4. play() is called ONLY after readyState >= 3 OR canplay event
  *  5. React.memo blocks all re-renders from timer/score/progress changes
@@ -12,19 +12,6 @@
 
 import { useRef, useEffect, useCallback, forwardRef, useImperativeHandle, memo } from 'react';
 import { motion } from 'framer-motion';
-
-// ─── In-Process Object URL Cache (survives re-renders, never GC'd) ────────────
-const objectUrlCache = new Map<string, string>();
-
-export function cacheObjectUrl(questionId: string, url: string): void {
-  if (!objectUrlCache.has(questionId)) {
-    objectUrlCache.set(questionId, url);
-  }
-}
-
-export function getCachedObjectUrl(questionId: string): string | undefined {
-  return objectUrlCache.get(questionId);
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,60 +35,23 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
     const videoRef = useRef<HTMLVideoElement | null>(null);
 
     // ── Diagnostics Refs (never cause re-renders) ───────────────────────────
-    const renderCountRef       = useRef(0);
-    const questionLoadTimeRef  = useRef(0);
-    const canPlayTimeRef       = useRef<number | null>(null);
-    const playTimeRef          = useRef<number | null>(null);
-    const currentSrcRef        = useRef('');
-    const animFrameIdRef       = useRef<number | null>(null);
-    const frameCallbackIdRef   = useRef<number | null>(null);
-    const autoPlayPendingRef   = useRef(autoPlayOnMount);
+    const renderCountRef      = useRef(0);
+    const questionLoadTimeRef = useRef(performance.now());
+    const canPlayTimeRef      = useRef<number | null>(null);
+    const playTimeRef         = useRef<number | null>(null);
+    const prevSrcRef          = useRef('');
+    const animFrameIdRef      = useRef<number | null>(null);
+    const frameCallbackIdRef  = useRef<number | null>(null);
+    const autoPlayPendingRef  = useRef(autoPlayOnMount);
 
     renderCountRef.current += 1;
     console.log(`[Diagnostics] StageMediaPlayer render #${renderCountRef.current} | questionId=${questionId}`);
 
-    // Resolve stable video source — prefer cache hit, then fallback to prop
-    const resolvedSrc = (questionId && objectUrlCache.get(questionId)) || videoUrl || mediaSrc || '';
+    // ── Resolve stable video source ─────────────────────────────────────────
+    // videoUrl and mediaSrc are already the blob:// Object URLs created in storage.ts
+    const resolvedSrc = videoUrl || mediaSrc || '';
 
-    // ── safePlay: wait for readyState ≥ 3 then call play() ──────────────────
-    const safePlay = useCallback(async () => {
-      const v = videoRef.current;
-      if (!v || !v.src) return;
-
-      const bufferedEnd = v.buffered.length > 0 ? v.buffered.end(v.buffered.length - 1) : 0;
-      console.log('[Diagnostics] video.readyState   =', v.readyState);
-      console.log('[Diagnostics] video.networkState =', v.networkState);
-      console.log('[Diagnostics] video.buffered.end =', bufferedEnd.toFixed(2), 's');
-      console.log('[Diagnostics] video.currentSrc   =', v.currentSrc?.slice(0, 60));
-
-      // If already at readyState >= 3, play immediately (< 1 ms)
-      if (v.readyState >= 3) {
-        console.log('[Diagnostics] readyState already HAVE_FUTURE_DATA — playing immediately');
-      } else {
-        console.log(`[Diagnostics] Waiting for canplay... (readyState=${v.readyState})`);
-        await new Promise<void>((resolve) => {
-          const handler = () => resolve();
-          v.addEventListener('canplay', handler, { once: true });
-        });
-      }
-
-      playTimeRef.current = performance.now();
-      if (canPlayTimeRef.current !== null) {
-        console.log(`[Diagnostics] Time from canplay → play(): ${(playTimeRef.current - canPlayTimeRef.current).toFixed(2)} ms`);
-      }
-
-      v.currentTime = 0;
-      v.muted = false;
-
-      try {
-        await v.play();
-        console.log('[Diagnostics] ✅ play() succeeded — video is now playing');
-      } catch (err) {
-        console.warn('[Diagnostics] ⚠ play() failed (autoplay policy?):', err);
-      }
-    }, []);
-
-    // ── Cancel any active frame callbacks ───────────────────────────────────
+    // ── GPU frame sync loop ──────────────────────────────────────────────────
     const cancelFrameCallbacks = useCallback(() => {
       if (animFrameIdRef.current !== null) {
         cancelAnimationFrame(animFrameIdRef.current);
@@ -114,7 +64,6 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
       }
     }, []);
 
-    // ── GPU frame sync loop (requestVideoFrameCallback or rAF fallback) ─────
     const scheduleFrameSync = useCallback(() => {
       const v = videoRef.current;
       if (!v) return;
@@ -136,18 +85,64 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
       }
     }, []);
 
-    // ── Mount: attach persistent event listeners once ────────────────────────
+    // ── safePlay: wait for readyState ≥ 3, then play() ──────────────────────
+    const safePlay = useCallback(async () => {
+      const v = videoRef.current;
+      if (!v) return;
+
+      // Make absolutely sure the video has a src before trying to play
+      if (!v.src && resolvedSrc) {
+        v.src = resolvedSrc;
+        v.load();
+      }
+
+      if (!v.src) {
+        console.warn('[StageMediaPlayer] safePlay called but video.src is empty — skipping');
+        return;
+      }
+
+      console.log('[Diagnostics] video.readyState   =', v.readyState);
+      console.log('[Diagnostics] video.networkState =', v.networkState);
+      console.log('[Diagnostics] video.currentSrc   =', v.currentSrc?.slice(0, 80));
+
+      if (v.readyState >= 3) {
+        console.log('[Diagnostics] readyState >= HAVE_FUTURE_DATA — playing immediately');
+      } else {
+        console.log(`[Diagnostics] Waiting for canplay... (readyState=${v.readyState})`);
+        await new Promise<void>((resolve) => {
+          const handler = () => resolve();
+          v.addEventListener('canplay', handler, { once: true });
+        });
+      }
+
+      playTimeRef.current = performance.now();
+      if (canPlayTimeRef.current !== null) {
+        console.log(
+          `[Diagnostics] Time from canplay → play(): ${(playTimeRef.current - canPlayTimeRef.current).toFixed(2)} ms`,
+        );
+      }
+
+      v.currentTime = 0;
+      v.muted = false;
+
+      try {
+        await v.play();
+        console.log('[Diagnostics] ✅ play() succeeded');
+      } catch (err) {
+        console.warn('[Diagnostics] ⚠ play() failed:', err);
+      }
+    }, [resolvedSrc]);
+
+    // ── Permanent event listeners (attached once on mount) ───────────────────
     useEffect(() => {
       const v = videoRef.current;
       if (!v) return;
 
       const onCanPlay = () => {
         canPlayTimeRef.current = performance.now();
-        console.log(
-          `[Diagnostics] ✅ canplay fired | Time from load → canplay: ${(canPlayTimeRef.current - questionLoadTimeRef.current).toFixed(2)} ms`,
-        );
+        const elapsed = (canPlayTimeRef.current - questionLoadTimeRef.current).toFixed(2);
+        console.log(`[Diagnostics] ✅ canplay fired | load → canplay: ${elapsed} ms`);
 
-        // If autoplay is pending, play NOW
         if (autoPlayPendingRef.current) {
           autoPlayPendingRef.current = false;
           safePlay();
@@ -155,77 +150,75 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
       };
 
       const onPlaying = () => {
-        const firstFrameTime = performance.now();
+        const now = performance.now();
         if (playTimeRef.current !== null) {
-          console.log(
-            `[Diagnostics] ✅ playing fired | Time from play() → first frame: ${(firstFrameTime - playTimeRef.current).toFixed(2)} ms`,
-          );
+          console.log(`[Diagnostics] ✅ playing | play() → first frame: ${(now - playTimeRef.current).toFixed(2)} ms`);
         }
-        const totalStartup = firstFrameTime - questionLoadTimeRef.current;
-        console.log(`[Diagnostics] 🚀 TOTAL STARTUP DELAY: ${totalStartup.toFixed(2)} ms`);
+        console.log(`[Diagnostics] 🚀 TOTAL STARTUP DELAY: ${(now - questionLoadTimeRef.current).toFixed(2)} ms`);
         scheduleFrameSync();
       };
 
       const onPause = () => cancelFrameCallbacks();
       const onEnded = () => cancelFrameCallbacks();
 
-      v.addEventListener('canplay',  onCanPlay);
-      v.addEventListener('playing',  onPlaying);
-      v.addEventListener('pause',    onPause);
-      v.addEventListener('ended',    onEnded);
+      v.addEventListener('canplay', onCanPlay);
+      v.addEventListener('playing', onPlaying);
+      v.addEventListener('pause',   onPause);
+      v.addEventListener('ended',   onEnded);
 
       return () => {
-        v.removeEventListener('canplay',  onCanPlay);
-        v.removeEventListener('playing',  onPlaying);
-        v.removeEventListener('pause',    onPause);
-        v.removeEventListener('ended',    onEnded);
+        v.removeEventListener('canplay', onCanPlay);
+        v.removeEventListener('playing', onPlaying);
+        v.removeEventListener('pause',   onPause);
+        v.removeEventListener('ended',   onEnded);
         cancelFrameCallbacks();
       };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // ← INTENTIONAL: listeners are permanent, attached once at mount
+    }, []); // permanent — runs once
 
-    // ── Src change: assign src + call load() IMMEDIATELY ────────────────────
+    // ── Src change: imperatively assign src + call load() immediately ────────
     useEffect(() => {
       const v = videoRef.current;
       if (!v || !resolvedSrc) return;
 
-      // Skip if src hasn't actually changed
-      if (currentSrcRef.current === resolvedSrc) return;
-      currentSrcRef.current = resolvedSrc;
+      // Skip if src is identical (blob URLs are stable per question)
+      if (prevSrcRef.current === resolvedSrc) return;
+      prevSrcRef.current = resolvedSrc;
 
-      // Reset diagnostics for this question
+      // Reset diagnostics
       questionLoadTimeRef.current = performance.now();
       canPlayTimeRef.current      = null;
       playTimeRef.current         = null;
       autoPlayPendingRef.current  = autoPlayOnMount;
 
-      console.log(`[Diagnostics] 📼 Assigning new src, calling load() immediately | questionId=${questionId}`);
-      console.log(`[Diagnostics] src = ${resolvedSrc.slice(0, 60)}...`);
+      console.log(`[Diagnostics] 📼 New src detected | questionId=${questionId}`);
+      console.log(`[Diagnostics] src = ${resolvedSrc.slice(0, 80)}`);
 
-      // Pause any current playback
+      // Pause current playback cleanly
       if (!v.paused) v.pause();
 
-      // Assign src and immediately preload the stream
+      // Assign src then immediately start buffering (don't wait for countdown)
       v.src     = resolvedSrc;
       v.preload = 'auto';
-      v.load(); // ← fires immediately, no waiting for countdowns
+      v.load();
 
       console.log(`[Diagnostics] video.load() called at ${performance.now().toFixed(2)} ms`);
     }, [resolvedSrc, questionId, autoPlayOnMount]);
 
-    // ── autoPlayOnMount prop change: update the pending flag ────────────────
+    // ── autoPlayOnMount change → trigger play if already buffered ────────────
     useEffect(() => {
       autoPlayPendingRef.current = autoPlayOnMount;
 
-      // If already canplay and autoplay was requested, play immediately
       if (autoPlayOnMount) {
         const v = videoRef.current;
-        if (v && v.readyState >= 3) {
+        if (v && v.src && v.readyState >= 3) {
           autoPlayPendingRef.current = false;
           safePlay();
         }
+        // else canplay handler will fire safePlay when ready
       }
-    }, [autoPlayOnMount, safePlay]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoPlayOnMount]);
 
     // ── Imperative API ───────────────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
@@ -260,9 +253,11 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
             height: 'fit-content',
             maxWidth: '100%',
             maxHeight: '75vh',
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+            background:
+              'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
             border: '2px solid rgba(168,85,247,0.4)',
-            boxShadow: '0 24px 70px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.25), 0 0 50px rgba(168,85,247,0.25)',
+            boxShadow:
+              '0 24px 70px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.25), 0 0 50px rgba(168,85,247,0.25)',
           }}
         >
           {/* Futuristic HUD Corner Accents */}
@@ -274,7 +269,10 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
           {/* Top Light Sweep Highlight */}
           <div
             className="pointer-events-none absolute inset-x-0 top-0 h-[1px] z-20 opacity-70"
-            style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(192,132,252,0.8) 50%, transparent 100%)' }}
+            style={{
+              background:
+                'linear-gradient(90deg, transparent 0%, rgba(192,132,252,0.8) 50%, transparent 100%)',
+            }}
           />
 
           {/* GPU-Accelerated Video Container */}
@@ -283,14 +281,13 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
             style={{ width: 'fit-content', height: 'fit-content', maxWidth: '100%', maxHeight: '75vh' }}
           >
             {/*
-             * SINGLE PERSISTENT <video> ELEMENT
-             * - Never unmounted (no key prop changes)
-             * - src is swapped via videoRef.current.src = ... in useEffect
-             * - preload="auto" set via JS to ensure it's always honoured
-             * - Hardware-layer compositing: translateZ(0), backfaceVisibility, contain
+             * SINGLE PERSISTENT <video> — src set synchronously via JSX prop.
+             * useEffect also assigns src imperatively for question transitions.
+             * Both paths ensure the video always has a valid src on first paint.
              */}
             <video
               ref={videoRef}
+              src={resolvedSrc || undefined}
               controls={false}
               playsInline
               muted={false}
@@ -311,6 +308,9 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
                 borderRadius: '24px',
               }}
               className="movie-player pointer-events-none select-none"
+              onError={(e) => {
+                console.error('[Video Error]', (e.target as HTMLVideoElement)?.error, resolvedSrc?.slice(0, 80));
+              }}
             />
 
             {/* Status Badge */}
@@ -328,8 +328,8 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
 StageMediaPlayerComponent.displayName = 'StageMediaPlayer';
 
 /**
- * Memoized export — re-renders ONLY when questionId or mediaSrc/videoUrl changes.
- * Timer ticks, score updates, countdown changes → NEVER cause a video re-render.
+ * Memoized — re-renders ONLY when questionId / mediaSrc / videoUrl / autoPlayOnMount changes.
+ * Timer ticks, score updates, progress → ZERO video re-renders.
  */
 export const StageMediaPlayer = memo(
   StageMediaPlayerComponent,
