@@ -19,7 +19,7 @@ export interface StageMediaPlayerRef {
   play: () => void;
 }
 
-const DEFAULT_FALLBACK_VIDEO = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
+const DEFAULT_FALLBACK_VIDEO = 'https://vjs.zencdn.net/v/oceans.mp4';
 
 export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayerProps>(
   ({ mediaSrc, videoUrl, autoPlayOnMount = false }, ref) => {
@@ -67,7 +67,6 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
         return { evt, handler };
       });
 
-      // Initial state log
       logVideoMetrics('initial_mount');
 
       return () => {
@@ -151,12 +150,9 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
     return (
       <div className="relative w-full max-w-2xl select-none">
         <motion.div
-          initial={{ opacity: 0, scale: 0.94 }}
-          animate={{ opacity: 1, scale: 1, y: [0, -5, 0] }}
-          transition={{
-            duration: 0.4,
-            y: { duration: 6, repeat: Infinity, ease: 'easeInOut' },
-          }}
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.35, ease: 'easeOut' }}
           className="relative flex flex-col overflow-hidden rounded-3xl backdrop-blur-2xl group"
           style={{
             background:
@@ -182,9 +178,9 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
             }}
           />
 
-          {/* ── HTML5 VIDEO PLAYER WITH ALL METRIC LISTENERS & SAFE AUTOPLAY ── */}
+          {/* ── GPU HARDWARE ACCELERATED 60FPS SMOOTH HTML5 VIDEO PLAYER ── */}
           <div
-            className="relative w-full overflow-hidden bg-black/90 rounded-3xl aspect-video flex items-center justify-center cursor-pointer"
+            className="relative w-full overflow-hidden bg-black/90 rounded-3xl aspect-video flex items-center justify-center cursor-pointer transform-gpu translate-z-0"
             onClick={handleVideoClick}
           >
             <video
@@ -196,7 +192,7 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
               preload="auto"
               controlsList="nodownload noplaybackrate noremoteplayback"
               disablePictureInPicture
-              className="h-full w-full object-contain rounded-3xl movie-player"
+              className="h-full w-full object-contain rounded-3xl movie-player transform-gpu translate-z-0"
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
               onEnded={() => setIsPlaying(false)}
