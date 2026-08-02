@@ -88,17 +88,20 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
   ).length;
   const incompleteCount = movies.length - readyCount;
 
+  // Check if list currently contains only default questions
+  const containsOnlyDefaults = movies.length > 0 && movies.every((m) => m.id.startsWith('movie-0') || m.id.startsWith('movie-1'));
+
   // ── Handle Folder Import ──
   const handleFolderImport = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
     const mediaFiles = Array.from(files).filter((file) =>
-      /\.(mp3|wav|mp4|m4a|mov|ogg|webm)$/i.test(file.name),
+      /\.(mp3|wav|mp4|m4a|mov|ogg|webm|mkv|avi|m4v|3gp|flv|wmv)$/i.test(file.name),
     );
 
     if (mediaFiles.length === 0) {
-      showToast('No media files found in selected folder.', true);
+      showToast('No valid media files found in selected folder.', true);
       return;
     }
 
@@ -125,6 +128,8 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
           dialogueSrc: objectUrl,
           videoUrl: objectUrl,
           _rawFile: file,
+          videoBlob: file,
+          videoFile: file,
           movieTitle,
           dialogueText: `"${movieTitle} - Famous Dialogue Clip"`,
           fileName: file.name,
@@ -143,11 +148,16 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
     }
 
     setIsImporting(false);
-    const updated = [...movies, ...newQuestions];
+
+    // If list currently contains default questions, replace them with newly imported videos so Question 1 is immediately the custom video!
+    const updated = containsOnlyDefaults
+      ? newQuestions
+      : [...newQuestions, ...movies];
+
     onUpdateMovies(updated);
     saveStoredMovies(updated);
     updateSaveTimestamp();
-    showToast(`✅ ${newQuestions.length} Movie Clips Imported Successfully`);
+    showToast(`✅ ${newQuestions.length} Movie Clips Imported & Set to Question 1!`);
 
     if (folderInputRef.current) folderInputRef.current.value = '';
   };
@@ -174,6 +184,8 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
         dialogueSrc: objectUrl,
         videoUrl: objectUrl,
         _rawFile: file,
+        videoBlob: file,
+        videoFile: file,
         movieTitle,
         dialogueText: `"${movieTitle} - Dialogue"`,
         fileName: file.name,
@@ -185,11 +197,14 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
         options: generateMovieOptions(movieTitle, allTitles),
       };
 
-      const updated = [...movies, newQ];
+      const updated = containsOnlyDefaults
+        ? [newQ]
+        : [newQ, ...movies];
+
       onUpdateMovies(updated);
       saveStoredMovies(updated);
       updateSaveTimestamp();
-      showToast(`Added ${movieTitle} clip successfully!`);
+      showToast(`Added ${movieTitle} video clip successfully!`);
     } catch (err) {
       console.error('[Import Error] Failed adding single file:', err);
     }
