@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { movieDialogues } from '@/data/movieQuestions';
 import type { MovieQuestion } from '@/types';
 import { shuffle } from '@/utils';
-import { getStoredMovies, getStoredSettings } from '@/utils/storage';
+import { getStoredMovies, getStoredMoviesAsync, getStoredSettings } from '@/utils/storage';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useSound } from '@/hooks/useSound';
 import {
@@ -16,10 +16,23 @@ import { StageCountdownModal } from '@/components/challenge/StageCountdownModal'
 
 export function GuessMoviePage() {
   const [settings]  = useState(() => getStoredSettings());
-  const [questions] = useState<MovieQuestion[]>(() => {
+  const [questions, setQuestions] = useState<MovieQuestion[]>(() => {
     const stored = getStoredMovies();
     return settings.shuffleMovies ? shuffle([...stored]) : stored;
   });
+
+  // Ensure 100% of imported video clips load asynchronously from IndexedDB
+  useEffect(() => {
+    let isMounted = true;
+    getStoredMoviesAsync().then((loaded) => {
+      if (isMounted && loaded && loaded.length > 0) {
+        setQuestions(settings.shuffleMovies ? shuffle([...loaded]) : loaded);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [settings.shuffleMovies]);
 
   const [index, setIndex]           = useState(0);
   const [score, setScore]           = useState(0);
