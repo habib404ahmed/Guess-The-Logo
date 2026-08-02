@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface StageMediaPlayerProps {
   mediaSrc: string;
+  fileName?: string;
   movieTitle?: string;
   genre?: string;
   speaker?: string;
@@ -27,15 +28,21 @@ function FilmIcon() {
 }
 
 export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayerProps>(
-  ({ mediaSrc, speaker, lines = [], linesShown = 0, autoPlayOnMount = false }, ref) => {
+  ({ mediaSrc, fileName, speaker, lines = [], linesShown = 0, autoPlayOnMount = false }, ref) => {
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
 
-    // Detect if media is a video file or video Data URL
+    // Detect if media is a video file, video Data URL, or video Blob URL
     const isVideo =
-      /\.(mp4|mov|webm|mkv|avi)$/i.test(mediaSrc) ||
-      mediaSrc.startsWith('data:video/');
+      Boolean(mediaSrc) &&
+      (
+        mediaSrc.startsWith('blob:') ||
+        mediaSrc.startsWith('data:video/') ||
+        /\.(mp4|mov|webm|mkv|avi|m4v)$/i.test(mediaSrc) ||
+        (fileName && /\.(mp4|mov|webm|mkv|avi|m4v)$/i.test(fileName)) ||
+        !mediaSrc.startsWith('data:audio/')
+      );
 
     useImperativeHandle(ref, () => ({
       replay: () => {
@@ -133,7 +140,9 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
               <video
                 ref={videoRef}
                 src={mediaSrc}
+                controls
                 playsInline
+                preload="metadata"
                 autoPlay={false}
                 controlsList="nodownload noplaybackrate noremoteplayback"
                 disablePictureInPicture
@@ -145,7 +154,7 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
 
               {/* Status Indicator */}
               {isPlaying && (
-                <div className="absolute top-4 right-4 flex items-center gap-2 rounded-full bg-purple-500/20 border border-purple-500/50 px-3.5 py-1 text-xs font-bold text-purple-300 backdrop-blur-md shadow-lg shadow-purple-500/20">
+                <div className="absolute top-4 right-4 flex items-center gap-2 rounded-full bg-purple-500/20 border border-purple-500/50 px-3.5 py-1 text-xs font-bold text-purple-300 backdrop-blur-md shadow-lg shadow-purple-500/20 pointer-events-none">
                   <span className="h-2 w-2 rounded-full bg-purple-400 animate-ping" />
                   PLAYING VIDEO CLIP
                 </div>
