@@ -7,8 +7,10 @@ import {
   getStoredSettings,
   saveStoredSettings,
   getStoredLogos,
+  getStoredLogosAsync,
   saveStoredLogos,
   getStoredMovies,
+  getStoredMoviesAsync,
   saveStoredMovies,
   resetToDefaults,
   type AppSettings,
@@ -28,6 +30,27 @@ export function AdminPage() {
   const [settings, setSettings] = useState<AppSettings>(() => getStoredSettings());
   const [logos, setLogos]       = useState<LogoQuestion[]>(() => getStoredLogos());
   const [movies, setMovies]     = useState<MovieQuestion[]>(() => getStoredMovies());
+
+  // Asynchronously hydrate logos & movies from IndexedDB on page refresh
+  useEffect(() => {
+    let isMounted = true;
+
+    getStoredLogosAsync().then((loadedLogos) => {
+      if (isMounted && loadedLogos && loadedLogos.length > 0) {
+        setLogos(loadedLogos);
+      }
+    });
+
+    getStoredMoviesAsync().then((loadedMovies) => {
+      if (isMounted && loadedMovies && loadedMovies.length > 0) {
+        setMovies(loadedMovies);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Save changes to storage
   const handleUpdateSettings = (newSettings: AppSettings) => {
