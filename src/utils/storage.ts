@@ -2,17 +2,23 @@ import type { LogoQuestion, MovieQuestion } from '@/types';
 import { logoQuestions as defaultLogoQuestions } from '@/data/logoQuestions';
 import { movieQuestions as defaultMovieQuestions } from '@/data/movieQuestions';
 
+// Extended type to hold optional transient file reference during upload
+export interface ExtendedMovieQuestion extends MovieQuestion {
+  _rawFile?: File | Blob;
+}
+
 // ─── Storage Keys ─────────────────────────────────────────────────────────────
 
 const SETTINGS_KEY = 'fresher_arena_settings';
 const LOGOS_KEY    = 'fresher_arena_logos';
 const MOVIES_KEY   = 'fresher_arena_movies';
 
-// ─── IndexedDB Persistent Storage (Handles 100MB+ Large Video Clips) ─────────
+// ─── IndexedDB Persistent Storage (Stores Raw Video & Image Blobs) ────────────
 
-const DB_NAME = 'FresherArenaMediaDB';
+const DB_NAME = 'FresherArenaMediaDB_v2';
 const DB_VERSION = 1;
-const STORE_NAME = 'app_media';
+const STORE_NAME = 'app_metadata';
+const BLOB_STORE_NAME = 'media_blobs';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -21,7 +27,7 @@ function getDB(): Promise<IDBDatabase> {
 
   dbPromise = new Promise((resolve, reject) => {
     if (typeof window === 'undefined' || !window.indexedDB) {
-      reject(new Error('IndexedDB not supported'));
+      reject(new Error('IndexedDB not supported in this browser environment'));
       return;
     }
     const request = window.indexedDB.open(DB_NAME, DB_VERSION);
@@ -29,6 +35,9 @@ function getDB(): Promise<IDBDatabase> {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME);
+      }
+      if (!db.objectStoreNames.contains(BLOB_STORE_NAME)) {
+        db.createObjectStore(BLOB_STORE_NAME);
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -46,9 +55,13 @@ export async function getFromDB<T>(key: string): Promise<T | null> {
       const store = tx.objectStore(STORE_NAME);
       const req = store.get(key);
       req.onsuccess = () => resolve(req.result ?? null);
-      req.onerror = () => resolve(null);
+      req.onerror = (err) => {
+        console.error(`[IndexedDB Error] Failed fetching key "${key}":`, err);
+        resolve(null);
+      };
     });
-  } catch {
+  } catch (err) {
+    console.error(`[IndexedDB Exception] getFromDB "${key}":`, err);
     return null;
   }
 }
@@ -56,10 +69,55 @@ export async function getFromDB<T>(key: string): Promise<T | null> {
 export async function saveToDB<T>(key: string, value: T): Promise<void> {
   try {
     const db = await getDB();
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       const store = tx.objectStore(STORE_NAME);
       store.put(value, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (err) {
+    console.error(`[IndexedDB Exception] saveToDB "${key}":`, err);
+  }
+}
+
+export async function saveMediaBlob(key: string, blob: Blob): Promise<void> {
+  try {
+    const db = await getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(BLOB_STORE_NAME, 'readwrite');
+      const store = tx.objectStore(BLOB_STORE_NAME);
+      store.put(blob, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (err) {
+    console.error(`[IndexedDB Exception] saveMediaBlob for key "${key}":`, err);
+  }
+}
+
+export async function getMediaBlob(key: string): Promise<Blob | null> {
+  try {
+    const db = await getDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(BLOB_STORE_NAME, 'readonly');
+      const store = tx.objectStore(BLOB_STORE_NAME);
+      const req = store.get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror = () => resolve(null);
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteMediaBlob(key: string): Promise<void> {
+  try {
+    const db = await getDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(BLOB_STORE_NAME, 'readwrite');
+      const store = tx.objectStore(BLOB_STORE_NAME);
+      store.delete(key);
       tx.oncomplete = () => resolve();
       tx.onerror = () => resolve();
     });
@@ -68,25 +126,22 @@ export async function saveToDB<T>(key: string, value: T): Promise<void> {
   }
 }
 
+function dataURItoBlob(dataURI: string): Blob {
+  const parts = dataURI.split(',');
+  const byteString = atob(parts[1]);
+  const mimeString = parts[0].split(':')[1].split(';')[0];
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  return new Blob([ab], { type: mimeString });
+}
+
 // ─── In-Memory Cache (Instant Synchronous Access) ────────────────────────────
 
 let cachedMovies: MovieQuestion[] | null = null;
 let cachedLogos: LogoQuestion[] | null  = null;
-
-// Pre-hydrate memory cache from IndexedDB asynchronously on load
-if (typeof window !== 'undefined') {
-  getFromDB<MovieQuestion[]>(MOVIES_KEY).then((data) => {
-    if (data && Array.isArray(data) && data.length > 0) {
-      cachedMovies = data;
-    }
-  });
-
-  getFromDB<LogoQuestion[]>(LOGOS_KEY).then((data) => {
-    if (data && Array.isArray(data) && data.length > 0) {
-      cachedLogos = data;
-    }
-  });
-}
 
 // ─── Settings Interface ──────────────────────────────────────────────────────
 
@@ -192,7 +247,7 @@ export function saveStoredLogos(logos: LogoQuestion[]): void {
   }
 }
 
-// ─── Movie Questions Storage ─────────────────────────────────────────────────
+// ─── Movie Questions Storage (Binary Blob + IndexedDB Strategy) ──────────────
 
 export function getStoredMovies(): MovieQuestion[] {
   if (cachedMovies && cachedMovies.length > 0) {
@@ -215,30 +270,85 @@ export function getStoredMovies(): MovieQuestion[] {
 }
 
 export async function getStoredMoviesAsync(): Promise<MovieQuestion[]> {
-  if (cachedMovies && cachedMovies.length > 0) {
-    return cachedMovies;
+  try {
+    let movies = cachedMovies;
+    if (!movies || movies.length === 0) {
+      movies = await getFromDB<MovieQuestion[]>(MOVIES_KEY);
+    }
+    if (!movies || movies.length === 0) {
+      movies = getStoredMovies();
+    }
+
+    if (movies && Array.isArray(movies) && movies.length > 0) {
+      // Re-hydrate video Blob URLs from IndexedDB for each movie clip
+      const resolved = await Promise.all(
+        movies.map(async (m) => {
+          if (!m.dialogueSrc || m.dialogueSrc.trim() === '' || m.dialogueSrc.startsWith('blob:')) {
+            const blob = await getMediaBlob(m.id);
+            if (blob) {
+              const objectUrl = URL.createObjectURL(blob);
+              return { ...m, dialogueSrc: objectUrl };
+            }
+          }
+          return m;
+        }),
+      );
+
+      cachedMovies = resolved;
+      return resolved;
+    }
+  } catch (err) {
+    console.error('[Storage Error] Failed to load movies from IndexedDB:', err);
   }
 
-  const fromDB = await getFromDB<MovieQuestion[]>(MOVIES_KEY);
-  if (fromDB && Array.isArray(fromDB) && fromDB.length > 0) {
-    cachedMovies = fromDB;
-    return fromDB;
-  }
-
-  return getStoredMovies();
+  return defaultMovieQuestions;
 }
 
-export function saveStoredMovies(movies: MovieQuestion[]): void {
+export function saveStoredMovies(movies: ExtendedMovieQuestion[]): void {
   cachedMovies = movies;
 
-  // 1. Save to IndexedDB (Handles unlimited MBs of video Data URLs without quota limits)
-  saveToDB(MOVIES_KEY, movies);
+  // Execute async persistence pipeline in background
+  saveStoredMoviesAsync(movies).catch((err) => {
+    console.error('[Storage Error] saveStoredMoviesAsync failed:', err);
+  });
+}
 
-  // 2. Try saving to localStorage as lightweight fallback
+export async function saveStoredMoviesAsync(movies: ExtendedMovieQuestion[]): Promise<void> {
+  cachedMovies = movies;
+
+  // 1. Save all raw binary video Blobs into IndexedDB BLOB_STORE_NAME
+  for (const m of movies) {
+    if (m._rawFile) {
+      await saveMediaBlob(m.id, m._rawFile);
+    } else if (m.dialogueSrc && m.dialogueSrc.startsWith('data:')) {
+      try {
+        const blob = dataURItoBlob(m.dialogueSrc);
+        await saveMediaBlob(m.id, blob);
+      } catch (err) {
+        console.warn(`Failed converting data URI blob for movie ${m.id}`, err);
+      }
+    }
+  }
+
+  // 2. Clean metadata representation (strip out huge base64 strings so metadata is lightweight!)
+  const cleanMetadata: MovieQuestion[] = movies.map((m) => {
+    const isHuge = m.dialogueSrc && m.dialogueSrc.length > 50000;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { _rawFile, ...rest } = m;
+    return {
+      ...rest,
+      dialogueSrc: isHuge ? '' : rest.dialogueSrc,
+    };
+  });
+
+  // 3. Save lightweight metadata to IndexedDB
+  await saveToDB(MOVIES_KEY, cleanMetadata);
+
+  // 4. Try saving lightweight metadata to localStorage as fallback
   try {
-    localStorage.setItem(MOVIES_KEY, JSON.stringify(movies));
+    localStorage.setItem(MOVIES_KEY, JSON.stringify(cleanMetadata));
   } catch (err) {
-    console.warn('localStorage quota exceeded for movies; persisted in IndexedDB.', err);
+    console.warn('localStorage quota exceeded; metadata persisted cleanly in IndexedDB.', err);
   }
 }
 

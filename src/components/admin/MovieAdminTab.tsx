@@ -1,7 +1,11 @@
 import { useState, useRef, type ChangeEvent } from 'react';
 import { motion, Reorder } from 'framer-motion';
 import type { MovieQuestion } from '@/types';
-import { saveStoredMovies } from '@/utils/storage';
+import {
+  saveStoredMovies,
+  deleteMediaBlob,
+  type ExtendedMovieQuestion,
+} from '@/utils/storage';
 
 interface MovieAdminTabProps {
   movies: MovieQuestion[];
@@ -82,7 +86,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
     setIsImporting(true);
     setProgress(0);
 
-    const newQuestions: MovieQuestion[] = [];
+    const newQuestions: ExtendedMovieQuestion[] = [];
     const allTitles = mediaFiles.map((f) => cleanMovieTitle(f.name));
 
     for (let i = 0; i < mediaFiles.length; i++) {
@@ -90,13 +94,14 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
       const movieTitle = cleanMovieTitle(file.name) || `Movie ${i + 1}`;
 
       try {
-        const dataUrl = await readFileAsDataURL(file);
+        const objectUrl = URL.createObjectURL(file);
         const questionId = `movie-custom-${Date.now()}-${i}`;
 
         newQuestions.push({
           id: questionId,
           type: 'movie',
-          dialogueSrc: dataUrl,
+          dialogueSrc: objectUrl,
+          _rawFile: file,
           movieTitle,
           dialogueText: `"${movieTitle} - Famous Dialogue Clip"`,
           fileName: file.name,
@@ -108,7 +113,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
           options: generateMovieOptions(movieTitle, allTitles),
         });
       } catch (err) {
-        console.error('Failed reading media file', file.name, err);
+        console.error('[Import Error] Failed processing file:', file.name, err);
       }
 
       setProgress(Math.round(((i + 1) / mediaFiles.length) * 100));
@@ -132,14 +137,15 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
     const movieTitle = cleanMovieTitle(file.name) || 'New Movie';
 
     try {
-      const dataUrl = await readFileAsDataURL(file);
+      const objectUrl = URL.createObjectURL(file);
       const questionId = `movie-custom-${Date.now()}`;
       const allTitles = movies.map((m) => m.movieTitle);
 
-      const newQ: MovieQuestion = {
+      const newQ: ExtendedMovieQuestion = {
         id: questionId,
         type: 'movie',
-        dialogueSrc: dataUrl,
+        dialogueSrc: objectUrl,
+        _rawFile: file,
         movieTitle,
         dialogueText: `"${movieTitle} - Dialogue"`,
         fileName: file.name,
@@ -156,7 +162,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
       saveStoredMovies(updated);
       showToast(`Added ${movieTitle} clip successfully!`);
     } catch (err) {
-      console.error(err);
+      console.error('[Import Error] Failed adding single file:', err);
     }
 
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -231,6 +237,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
   // ── Delete ──
   const handleDelete = (id: string) => {
     const updated = movies.filter((q) => q.id !== id);
+    deleteMediaBlob(id); // Delete binary blob from IndexedDB
     onUpdateMovies(updated);
     saveStoredMovies(updated);
     showToast('Dialogue clip deleted.');
@@ -354,6 +361,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
             !movie.fileName ||
             /\.(mp4|mov|webm|mkv)$/i.test(movie.dialogueSrc) ||
             movie.dialogueSrc.startsWith('data:video/') ||
+            movie.dialogueSrc.startsWith('blob:') ||
             (movie.fileName && /\.(mp4|mov|webm)$/i.test(movie.fileName));
 
           return (
@@ -465,7 +473,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
 
                   {/* 3. 💡 HINT (OPTIONAL) */}
                   <div className="flex flex-col gap-2">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                    <label className="text-xs font-black text-[#94a3b8] uppercase tracking-widest">
                       💡 HINT (OPTIONAL)
                     </label>
                     <input
@@ -524,13 +532,4 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
       </Reorder.Group>
     </div>
   );
-}
-
-function readFileAsDataURL(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }
