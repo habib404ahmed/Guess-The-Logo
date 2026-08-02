@@ -29,56 +29,59 @@ const ACCENT: Record<AccentColor, {
   borderHover: string;
   iconBg: string;
   iconGlow: string;
+  cornerColor: string;
 }> = {
   primary: {
-    glow: 'rgba(59,130,246,0.35)',
-    badge: 'rgba(59,130,246,0.18)',
-    badgeBorder: 'rgba(59,130,246,0.35)',
-    badgeText: '#60a5fa',
-    buttonBg: 'linear-gradient(135deg, #3b82f6, #8b5cf6, #2563eb)',
-    buttonBorder: 'rgba(59,130,246,0.6)',
-    buttonGlow: 'rgba(59,130,246,0.45)',
-    borderHover: 'rgba(59,130,246,0.55)',
-    iconBg: 'rgba(59,130,246,0.15)',
-    iconGlow: '#60a5fa',
+    glow: 'rgba(0,243,255,0.45)',
+    badge: 'rgba(0,243,255,0.18)',
+    badgeBorder: 'rgba(0,243,255,0.45)',
+    badgeText: '#00f3ff',
+    buttonBg: 'linear-gradient(135deg, #00f3ff 0%, #3b82f6 50%, #1d4ed8 100%)',
+    buttonBorder: 'rgba(0,243,255,0.7)',
+    buttonGlow: 'rgba(0,243,255,0.55)',
+    borderHover: 'rgba(0,243,255,0.65)',
+    iconBg: 'rgba(0,243,255,0.18)',
+    iconGlow: '#00f3ff',
+    cornerColor: '#00f3ff',
   },
   secondary: {
-    glow: 'rgba(168,85,247,0.35)',
-    badge: 'rgba(168,85,247,0.18)',
-    badgeBorder: 'rgba(168,85,247,0.35)',
-    badgeText: '#c084fc',
-    buttonBg: 'linear-gradient(135deg, #a855f7, #ec4899, #9333ea)',
-    buttonBorder: 'rgba(168,85,247,0.6)',
-    buttonGlow: 'rgba(168,85,247,0.45)',
-    borderHover: 'rgba(168,85,247,0.55)',
-    iconBg: 'rgba(168,85,247,0.15)',
-    iconGlow: '#c084fc',
+    glow: 'rgba(255,0,127,0.45)',
+    badge: 'rgba(255,0,127,0.18)',
+    badgeBorder: 'rgba(255,0,127,0.45)',
+    badgeText: '#ff007f',
+    buttonBg: 'linear-gradient(135deg, #ff007f 0%, #a855f7 50%, #9333ea 100%)',
+    buttonBorder: 'rgba(255,0,127,0.7)',
+    buttonGlow: 'rgba(255,0,127,0.55)',
+    borderHover: 'rgba(255,0,127,0.65)',
+    iconBg: 'rgba(255,0,127,0.18)',
+    iconGlow: '#ff007f',
+    cornerColor: '#ff007f',
   },
 };
 
 function LogoIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M20 20L17 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M8 11h6M11 8v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M20 20L17 17" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M8 11h6M11 8v6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
     </svg>
   );
 }
 
 function MovieIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="2" />
-      <path d="M2 8h20M8 3v5M16 3v5M8 17v4M16 17v4M12 17v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="3" width="20" height="14" rx="2.5" stroke="currentColor" strokeWidth="2.2" />
+      <path d="M2 8h20M8 3v5M16 3v5M8 17v4M16 17v4M12 17v4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
     </svg>
   );
 }
 
 function ArrowRightIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -139,13 +142,13 @@ export function ChallengeCard({
       tabIndex={0}
       aria-label={`Start ${title} challenge`}
       onKeyDown={(e) => e.key === 'Enter' && handleClick()}
-      className="challenge-card group relative cursor-pointer overflow-hidden rounded-3xl outline-none focus-visible:ring-2 focus-visible:ring-white/40 select-none"
+      className="challenge-card group relative cursor-pointer overflow-hidden rounded-3xl outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 select-none"
       style={{
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
-        border: '1.5px solid rgba(255,255,255,0.12)',
+        background: 'linear-gradient(135deg, rgba(15,23,42,0.85) 0%, rgba(6,9,24,0.92) 100%)',
+        border: `1.5px solid ${a.badgeBorder}`,
         backdropFilter: 'blur(28px)',
         WebkitBackdropFilter: 'blur(28px)',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.2)',
+        boxShadow: `0 20px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.25), 0 0 35px ${a.glow}`,
         transformStyle: 'preserve-3d',
       }}
       animate={{
@@ -159,13 +162,25 @@ export function ChallengeCard({
       }}
       whileTap={{ scale: 0.98 }}
     >
-      {/* HUD Corner Highlights */}
-      <div className="pointer-events-none absolute top-3 left-3 h-3.5 w-3.5 border-t-2 border-l-2 border-white/20 group-hover:border-purple-400 z-20 transition-colors" />
-      <div className="pointer-events-none absolute top-3 right-3 h-3.5 w-3.5 border-t-2 border-r-2 border-white/20 group-hover:border-purple-400 z-20 transition-colors" />
-      <div className="pointer-events-none absolute bottom-3 left-3 h-3.5 w-3.5 border-b-2 border-l-2 border-white/20 group-hover:border-purple-400 z-20 transition-colors" />
-      <div className="pointer-events-none absolute bottom-3 right-3 h-3.5 w-3.5 border-b-2 border-r-2 border-white/20 group-hover:border-purple-400 z-20 transition-colors" />
+      {/* Cybernetic HUD Corner Brackets */}
+      <div
+        className="pointer-events-none absolute top-3 left-3 h-4 w-4 border-t-2 border-l-2 z-20 transition-all duration-300"
+        style={{ borderColor: a.cornerColor }}
+      />
+      <div
+        className="pointer-events-none absolute top-3 right-3 h-4 w-4 border-t-2 border-r-2 z-20 transition-all duration-300"
+        style={{ borderColor: a.cornerColor }}
+      />
+      <div
+        className="pointer-events-none absolute bottom-3 left-3 h-4 w-4 border-b-2 border-l-2 z-20 transition-all duration-300"
+        style={{ borderColor: a.cornerColor }}
+      />
+      <div
+        className="pointer-events-none absolute bottom-3 right-3 h-4 w-4 border-b-2 border-r-2 z-20 transition-all duration-300"
+        style={{ borderColor: a.cornerColor }}
+      />
 
-      {/* Glow Orb on Hover */}
+      {/* Glow Ambient Aura on Hover */}
       <div
         className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
         style={{
@@ -173,7 +188,7 @@ export function ChallengeCard({
         }}
       />
 
-      {/* Image Container with Parallax Zoom */}
+      {/* Game Image Banner with Parallax Zoom */}
       <div className="relative overflow-hidden" style={{ aspectRatio: '16/6' }}>
         <img
           src={imageSrc}
@@ -189,29 +204,31 @@ export function ChallengeCard({
             background: 'linear-gradient(to top, rgba(6,9,24,0.98) 0%, transparent 100%)',
           }}
         />
-        {/* Number Badge */}
+        {/* Arcade Level Badge */}
         <div
-          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-xs font-black text-white shadow-xl"
+          className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black text-white shadow-2xl backdrop-blur-md"
           style={{
-            background: a.buttonBg,
-            boxShadow: `0 0 16px ${a.buttonGlow}`,
+            background: 'rgba(0,0,0,0.6)',
+            border: `1px solid ${a.cornerColor}`,
+            boxShadow: `0 0 15px ${a.buttonGlow}`,
           }}
         >
-          #{index + 1}
+          <span className="h-2 w-2 rounded-full animate-ping" style={{ background: a.cornerColor }} />
+          <span>STAGE #{index + 1}</span>
         </div>
       </div>
 
       {/* Card Content Body */}
-      <div className="relative flex flex-col gap-3.5 p-6">
+      <div className="relative flex flex-col gap-4 p-6">
         {/* Header Row */}
-        <div className="flex items-center gap-3.5">
+        <div className="flex items-center gap-4">
           <div
-            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl"
+            className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl"
             style={{
               background: a.iconBg,
               color: a.iconGlow,
-              border: `1px solid ${a.badgeBorder}`,
-              boxShadow: `0 0 15px ${a.badge}`,
+              border: `1.5px solid ${a.badgeBorder}`,
+              boxShadow: `0 0 20px ${a.glow}`,
             }}
           >
             <Icon />
@@ -219,70 +236,74 @@ export function ChallengeCard({
 
           <div className="flex flex-1 flex-col gap-1">
             <h2
-              className="font-black leading-tight text-[#f0f4ff]"
+              className="font-black leading-tight text-white tracking-tight"
               style={{
                 fontFamily: 'Space Grotesk, Outfit, system-ui, sans-serif',
-                fontSize: 'clamp(1.2rem, 2.2vw, 1.5rem)',
+                fontSize: 'clamp(1.3rem, 2.4vw, 1.65rem)',
+                textShadow: `0 0 20px ${a.glow}`,
               }}
             >
               {title}
             </h2>
             <div className="flex flex-wrap gap-2">
               <span
-                className="text-caption rounded-full px-3 py-0.5 font-bold"
+                className="text-caption rounded-full px-3 py-0.5 font-extrabold uppercase text-xs"
                 style={{
                   background: a.badge,
                   border: `1px solid ${a.badgeBorder}`,
                   color: a.badgeText,
+                  textShadow: `0 0 10px ${a.glow}`,
                 }}
               >
-                {questionCount} Questions
+                {questionCount} QUESTIONS
               </span>
               <span
-                className="text-caption rounded-full px-3 py-0.5 font-bold"
+                className="text-caption rounded-full px-3 py-0.5 font-extrabold uppercase text-xs"
                 style={{
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: '#94a3b8',
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.18)',
+                  color: '#e2e8f0',
                 }}
               >
-                {difficulty}
+                🏆 100 PTS / QUEST
               </span>
             </div>
           </div>
         </div>
 
         {/* Description */}
-        <p className="text-label leading-relaxed text-[#94a3b8] font-medium">
+        <p className="text-label leading-relaxed text-[#cbd5e1] font-semibold text-sm">
           {description}
         </p>
 
-        {/* Action Button */}
+        {/* Esports Action Button */}
         <motion.button
           id={`${id}-cta`}
-          className="btn btn-xl mt-1 w-full shimmer font-extrabold"
+          className="btn btn-xl mt-1 w-full shimmer font-black tracking-widest text-base"
           style={{
-            height: '54px',
+            height: '56px',
             background: a.buttonBg,
-            border: `1px solid ${a.buttonBorder}`,
+            border: `1.5px solid ${a.buttonBorder}`,
             color: '#ffffff',
-            boxShadow: `0 6px 24px ${a.buttonGlow}`,
+            boxShadow: `0 8px 30px ${a.buttonGlow}`,
+            textShadow: '0 2px 8px rgba(0,0,0,0.6)',
           }}
-          whileHover={{ boxShadow: `0 10px 36px ${a.buttonGlow}` }}
+          whileHover={{ boxShadow: `0 12px 40px ${a.buttonGlow}`, scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
           onClick={(e) => {
             e.stopPropagation();
             handleClick();
           }}
         >
-          <span className="tracking-wide">START CHALLENGE</span>
+          <span>🎮 ENTER ARENA</span>
           <ArrowRightIcon />
         </motion.button>
       </div>
 
-      {/* Hover Neon Border Highlight */}
+      {/* Hover High Voltage Neon Border */}
       <div
         className="pointer-events-none absolute inset-0 rounded-3xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        style={{ boxShadow: `inset 0 0 0 1.5px ${a.borderHover}, 0 0 50px ${a.glow}` }}
+        style={{ boxShadow: `inset 0 0 0 2px ${a.borderHover}, 0 0 60px ${a.glow}` }}
       />
     </motion.article>
   );

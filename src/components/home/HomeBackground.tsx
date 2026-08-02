@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 
 /**
- * HomeBackground — Million-Dollar Event Environmental Lighting
+ * HomeBackground — High-Energy Cyberpunk Game Zone Arena Lighting
  * ─────────────────────────────────────────────────────────────────────────────
- * Modeled after PlayStation Showcase & Apple Keynote stages:
+ * Modeled after Esports Stadiums & PlayStation Showcase Game Arenas:
  * - Parallax hero background layer
- * - Dynamic mouse tracking lighting aura (blue, purple, cyan bloom)
- * - Cinematic vignette & soft ambient grid mesh
+ * - High-voltage mouse tracking lighting aura (Cyan #00f3ff & Hot Magenta #ff007f bloom)
+ * - Cyberpunk neon grid mesh & atmospheric laser beam sweeps
  */
 export function HomeBackground() {
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
@@ -35,21 +35,21 @@ export function HomeBackground() {
           backgroundImage: "url('/assets/backgrounds/hero-bg.jpg')",
           backgroundAttachment: 'fixed',
           filter: 'blur(3px) scale(1.05)',
-          transform: `translate(${(mousePos.x - 50) * -0.05}px, ${(mousePos.y - 50) * -0.05}px)`,
+          transform: `translate(${(mousePos.x - 50) * -0.06}px, ${(mousePos.y - 50) * -0.06}px)`,
         }}
       />
 
-      {/* ── 2. Dark Overlay for Text & Typography Contrast ── */}
+      {/* ── 2. Dark Overlay for Contrast & Typography Readability ── */}
       <div
         className="absolute inset-0"
-        style={{ background: 'rgba(6, 9, 24, 0.65)' }}
+        style={{ background: 'rgba(5, 7, 20, 0.68)' }}
       />
 
-      {/* ── 3. Interactive Mouse Lighting Aura (Blue / Purple / Cyan Glow) ── */}
+      {/* ── 3. High-Voltage Mouse Tracking Neon Aura (Cyan & Magenta Bloom) ── */}
       <div
         className="absolute inset-0 transition-all duration-300 ease-out"
         style={{
-          background: `radial-gradient(circle 600px at ${mousePos.x}% ${mousePos.y}%, rgba(59, 130, 246, 0.15) 0%, rgba(168, 85, 247, 0.1) 40%, transparent 80%)`,
+          background: `radial-gradient(circle 650px at ${mousePos.x}% ${mousePos.y}%, rgba(0, 243, 255, 0.18) 0%, rgba(255, 0, 127, 0.14) 40%, transparent 80%)`,
         }}
       />
 
@@ -58,26 +58,26 @@ export function HomeBackground() {
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at center, rgba(6, 9, 24, 0.1) 0%, rgba(6, 9, 24, 0.75) 75%, rgba(6, 9, 24, 0.95) 100%)',
+            'radial-gradient(ellipse at center, rgba(5, 7, 20, 0.1) 0%, rgba(5, 7, 20, 0.75) 75%, rgba(5, 7, 20, 0.95) 100%)',
         }}
       />
 
-      {/* ── 5. Ambient Center Bloom ── */}
+      {/* ── 5. Ambient Esports Stadium Center Bloom ── */}
       <div
         className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-3/4 pointer-events-none"
         style={{
           background:
-            'radial-gradient(ellipse at center, rgba(59, 130, 246, 0.08) 0%, rgba(168, 85, 247, 0.06) 45%, transparent 80%)',
+            'radial-gradient(ellipse at center, rgba(0, 243, 255, 0.12) 0%, rgba(168, 85, 247, 0.1) 45%, transparent 80%)',
         }}
       />
 
       {/* ── 6. Futuristic Cyberpunk Grid Mesh ── */}
       <div
-        className="absolute inset-0 opacity-25"
+        className="absolute inset-0 opacity-30"
         style={{
           backgroundImage: `
-            linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px)
+            linear-gradient(rgba(0, 243, 255, 0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 0, 127, 0.04) 1px, transparent 1px)
           `,
           backgroundSize: '64px 64px',
         }}
