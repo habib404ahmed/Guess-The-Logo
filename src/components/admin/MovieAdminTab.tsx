@@ -237,18 +237,28 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* ── Top Header & Actions ── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-white/10 pb-5">
+    <div className="flex flex-col gap-8">
+      {/* ── Professional Workstation Header ── */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-white/10 pb-6 select-none">
         <div>
-          <h2 className="text-h3 font-bold text-[#f0f4ff]">Movie Challenge Manager</h2>
-          <p className="text-body mt-0.5 text-[#94a3b8]">
-            Import dialogue video/audio folders. Enter Movie Name & Dialogue Text (both required) for live stage reveal.
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/20 border border-purple-500/40 text-xl">
+              🎬
+            </span>
+            <h2
+              className="text-2xl font-black text-white tracking-tight"
+              style={{ fontFamily: 'Space Grotesk, Orbitron, sans-serif' }}
+            >
+              Movie Challenge Workstation
+            </h2>
+          </div>
+          <p className="text-sm font-medium text-[#94a3b8] mt-1">
+            Manage media clips, dialogue prompts, and stage reveal answers for the Movie Challenge.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Hidden Directory Input */}
+          {/* Hidden Inputs */}
           <input
             ref={folderInputRef}
             type="file"
@@ -259,8 +269,6 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
             className="hidden"
             onChange={handleFolderImport}
           />
-
-          {/* Hidden File Input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -272,16 +280,16 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
           {/* Folder Import Button */}
           <button
             id="import-dialogue-folder-btn"
-            className="btn btn-secondary shadow-lg shadow-purple-500/20"
+            className="btn btn-secondary shadow-lg shadow-purple-500/25 px-5 py-2.5 rounded-xl font-bold"
             onClick={() => folderInputRef.current?.click()}
             disabled={isImporting}
           >
             <span>📁 Import Video Folder</span>
           </button>
 
-          {/* Single File Add */}
+          {/* Single File Add Button */}
           <button
-            className="btn btn-outline"
+            className="btn btn-outline border-white/20 text-slate-200 hover:bg-white/10 px-5 py-2.5 rounded-xl font-bold"
             onClick={() => fileInputRef.current?.click()}
             disabled={isImporting}
           >
@@ -290,24 +298,24 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
 
           {/* Save All Changes Button */}
           <button
-            className="btn btn-primary shadow-lg shadow-blue-500/20"
+            className="btn btn-primary shadow-lg shadow-blue-500/25 px-6 py-2.5 rounded-xl font-black tracking-wider uppercase"
             onClick={handleSaveAll}
           >
-            <span>💾 Save Movie List</span>
+            <span>💾 Save All Changes</span>
           </button>
         </div>
       </div>
 
-      {/* ── Import Progress Bar ── */}
+      {/* ── Import Progress Indicator ── */}
       {isImporting && (
-        <div className="card flex flex-col gap-2 bg-purple-500/10 border-purple-500/30">
-          <div className="flex items-center justify-between text-label">
-            <span className="text-[#c084fc]">Processing video folder clips…</span>
-            <span className="font-bold text-[#f0f4ff]">{progress}%</span>
+        <div className="rounded-2xl p-5 bg-purple-950/40 border border-purple-500/40 backdrop-blur-xl flex flex-col gap-2.5">
+          <div className="flex items-center justify-between text-sm font-bold">
+            <span className="text-purple-300">Processing & encoding video clips…</span>
+            <span className="text-white">{progress}%</span>
           </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/10">
+          <div className="h-3 w-full overflow-hidden rounded-full bg-white/10">
             <div
-              className="h-full bg-purple-500 transition-all duration-200"
+              className="h-full bg-gradient-to-r from-purple-500 to-cyan-400 transition-all duration-200"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -320,10 +328,10 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0 }}
-          className={`rounded-2xl border px-5 py-3 ${
+          className={`rounded-2xl border px-6 py-3.5 font-bold ${
             toastMessage.isError
               ? 'border-red-500/40 bg-red-500/15 text-red-300'
-              : 'border-emerald-500/30 bg-emerald-500/10 text-[#4ade80]'
+              : 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
           }`}
         >
           {toastMessage.isError ? '⚠️ ' : '✅ '}
@@ -331,7 +339,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
         </motion.div>
       )}
 
-      {/* ── Movie Dialogue Cards List ── */}
+      {/* ── Premium Glass Media Cards List (DaVinci / Linear Workstation Cards) ── */}
       <Reorder.Group
         axis="y"
         values={movies}
@@ -339,7 +347,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
           onUpdateMovies(newOrder);
           saveStoredMovies(newOrder);
         }}
-        className="flex flex-col gap-5"
+        className="flex flex-col gap-6"
       >
         {movies.map((movie, idx) => {
           const isVideo =
@@ -352,136 +360,162 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
             <Reorder.Item
               key={movie.id}
               value={movie}
-              className="card flex flex-col gap-4 p-5 backdrop-blur-xl border border-white/10 hover:border-purple-500/40 transition-colors"
+              className="group relative flex flex-col gap-6 p-8 rounded-[24px] backdrop-blur-3xl border border-purple-500/35 transition-all select-none"
+              style={{
+                background: 'linear-gradient(145deg, rgba(14, 12, 35, 0.88) 0%, rgba(6, 8, 24, 0.94) 100%)',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.2), 0 0 30px rgba(168,85,247,0.25)',
+              }}
+              whileHover={{ y: -2 }}
             >
-              {/* Row 1: Header (Drag, #, File Name, Preview, Delete) */}
-              <div className="flex items-center justify-between gap-4 border-b border-white/5 pb-3">
-                <div className="flex items-center gap-3">
-                  <span className="cursor-grab text-2xl text-[#475569] hover:text-[#94a3b8] select-none">
+              {/* Card Title Header (Drag Handle, Clip #, File Name) */}
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div className="flex items-center gap-3.5">
+                  <span className="cursor-grab text-2xl text-slate-400 hover:text-white transition-colors">
                     ⋮⋮
                   </span>
 
-                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-500/15 border border-purple-500/30 text-xs font-black text-[#c084fc]">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/20 border border-purple-500/40 text-xs font-black text-purple-300">
                     #{idx + 1}
                   </span>
 
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-lg">
-                    {isVideo ? '🎥' : '🎵'}
-                  </div>
-
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider">
-                      🎥 Video / Audio File (Read Only)
-                    </span>
-                    <span
-                      className="truncate text-sm font-medium text-slate-300"
-                      title={movie.fileName || `${movie.movieTitle}.mp4`}
-                    >
+                  <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-white/5 border border-white/10">
+                    <span className="text-base">{isVideo ? '🎥' : '🎵'}</span>
+                    <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
                       {movie.fileName || `${movie.movieTitle}.mp4`}
                     </span>
                   </div>
                 </div>
+              </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      const el = document.getElementById(`video-player-${movie.id}`) as HTMLMediaElement;
-                      if (el) {
-                        if (el.paused) {
-                          el.play();
-                        } else {
-                          el.pause();
-                        }
-                      }
+              {/* TWO COLUMN SPLIT-SCREEN LAYOUT (40% Left Video Preview / 60% Right Form Inputs) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                
+                {/* ── LEFT COLUMN (40%): Compact Video Preview Container ── */}
+                <div className="lg:col-span-5 flex flex-col gap-3 w-full">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-cyan-400">
+                      📹 Video Player Preview
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">
+                      16:9 Aspect Ratio
+                    </span>
+                  </div>
+
+                  {/* 16:9 Compact Video Frame (Max Width ~420px, Rounded 16px, Glass Border, Neon Outline) */}
+                  <div
+                    className="relative w-full max-w-[420px] aspect-video overflow-hidden rounded-[16px] bg-black/90 flex items-center justify-center border border-cyan-400/40"
+                    style={{
+                      boxShadow: '0 0 20px rgba(0, 240, 255, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
                     }}
-                    className="btn btn-sm btn-outline text-purple-300 border-purple-500/30 hover:bg-purple-500/20"
                   >
-                    ▶️ Play / Pause
-                  </button>
-
-                  <button
-                    onClick={() => handleDelete(movie.id)}
-                    className="btn btn-sm btn-ghost text-red-400 hover:bg-red-500/20 hover:text-red-300"
-                    title="Delete Clip"
-                  >
-                    🗑️ Delete
-                  </button>
+                    {isVideo ? (
+                      <video
+                        id={`video-player-${movie.id}`}
+                        src={movie.dialogueSrc}
+                        controls
+                        preload="metadata"
+                        playsInline
+                        autoPlay={false}
+                        className="h-full w-full object-contain rounded-xl"
+                      />
+                    ) : (
+                      <audio
+                        id={`video-player-${movie.id}`}
+                        src={movie.dialogueSrc}
+                        controls
+                        preload="metadata"
+                        className="w-full px-4"
+                      />
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Row 2: HTML5 Video Player (Rendered IMMEDIATELY on Import & Load) */}
-              <div className="w-full flex flex-col gap-2">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  🎬 Video Player Preview (First Frame Poster)
-                </span>
+                {/* ── RIGHT COLUMN (60%): Stacked Form Fields (24px Spacing) ── */}
+                <div className="lg:col-span-7 flex flex-col gap-6 w-full">
 
-                <div className="relative w-full aspect-video max-h-64 overflow-hidden rounded-2xl bg-black/80 border border-white/15 flex items-center justify-center">
-                  {isVideo ? (
-                    <video
-                      id={`video-player-${movie.id}`}
-                      src={movie.dialogueSrc}
-                      controls
-                      preload="metadata"
-                      playsInline
-                      autoPlay={false}
-                      className="h-full w-full object-contain rounded-xl"
+                  {/* 1. 🎬 MOVIE NAME * (Required) */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-black text-purple-400 uppercase tracking-widest flex items-center justify-between">
+                      <span>🎬 MOVIE NAME *</span>
+                      <span className="text-[10px] font-semibold text-purple-300">Required</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={movie.movieTitle}
+                      onChange={(e) => handleTitleChange(movie.id, e.target.value)}
+                      className="w-full h-[50px] rounded-[14px] border border-purple-500/50 bg-purple-950/20 px-4 font-bold text-white text-base focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all shadow-inner"
+                      placeholder="e.g. Dabangg, Pushpa, Sholay"
                     />
-                  ) : (
-                    <audio
-                      id={`video-player-${movie.id}`}
-                      src={movie.dialogueSrc}
-                      controls
-                      preload="metadata"
-                      className="w-full px-4"
+                  </div>
+
+                  {/* 2. 📝 DIALOGUE TEXT * (Required) */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-black text-cyan-400 uppercase tracking-widest flex items-center justify-between">
+                      <span>📝 DIALOGUE TEXT *</span>
+                      <span className="text-[10px] font-semibold text-cyan-300">Required</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={movie.dialogueText || ''}
+                      onChange={(e) => handleDialogueTextChange(movie.id, e.target.value)}
+                      className="w-full rounded-[14px] border border-cyan-500/50 bg-cyan-950/20 p-4 font-semibold text-white text-sm focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 resize-none transition-all shadow-inner leading-relaxed"
+                      placeholder='e.g. "Thappad Se Darr Nahi Lagta Sahab" or "Pushpa... Pushpa Raj"'
                     />
-                  )}
-                </div>
-              </div>
+                  </div>
 
-              {/* Row 3: Editable Fields (Movie Name, Dialogue Text, Optional Hint) */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                {/* 🎬 Movie Name (Required) */}
-                <div className="md:col-span-4 flex flex-col gap-1">
-                  <label className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center justify-between">
-                    <span>🎬 Movie Name *</span>
-                    <span className="text-[10px] font-normal text-purple-300">Required</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={movie.movieTitle}
-                    onChange={(e) => handleTitleChange(movie.id, e.target.value)}
-                    className="w-full rounded-xl border border-purple-500/40 bg-purple-950/20 px-3.5 py-2 font-bold text-[#f0f4ff] focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500/30 text-base"
-                    placeholder="e.g. Dabangg, Pushpa, Sholay"
-                  />
-                </div>
+                  {/* 3. 💡 HINT (OPTIONAL) */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                      💡 HINT (OPTIONAL)
+                    </label>
+                    <input
+                      type="text"
+                      value={movie.optionalHint || ''}
+                      onChange={(e) => handleHintChange(movie.id, e.target.value)}
+                      className="w-full h-[50px] rounded-[14px] border border-white/15 bg-white/5 px-4 text-sm font-medium text-white focus:border-purple-500/60 focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all"
+                      placeholder="e.g. Salman Khan, Amitabh Bachchan"
+                    />
+                  </div>
 
-                {/* 📝 Dialogue Text (Required Text Area) */}
-                <div className="md:col-span-5 flex flex-col gap-1">
-                  <label className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center justify-between">
-                    <span>📝 Dialogue Text *</span>
-                    <span className="text-[10px] font-normal text-cyan-300">Required</span>
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={movie.dialogueText || ''}
-                    onChange={(e) => handleDialogueTextChange(movie.id, e.target.value)}
-                    className="w-full rounded-xl border border-cyan-500/40 bg-cyan-950/20 px-3.5 py-1.5 text-sm font-medium text-[#f0f4ff] focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 resize-none"
-                    placeholder='e.g. "Thappad Se Darr Nahi Lagta Sahab" or "Pushpa... Pushpa Raj"'
-                  />
-                </div>
+                  {/* ── HORIZONTAL ACTION BUTTONS BELOW INPUT FIELDS ── */}
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                    {/* Play / Pause Toggle Button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const el = document.getElementById(`video-player-${movie.id}`) as HTMLMediaElement;
+                        if (el) {
+                          if (el.paused) {
+                            el.play();
+                          } else {
+                            el.pause();
+                          }
+                        }
+                      }}
+                      className="flex items-center gap-2 px-5 py-3 rounded-xl bg-purple-500/15 border border-purple-500/40 text-purple-300 font-extrabold text-sm hover:bg-purple-500/30 hover:scale-[1.02] transition-all cursor-pointer shadow-lg"
+                    >
+                      <span>▶️ Play / Pause Video</span>
+                    </button>
 
-                {/* 💡 Hint (Optional) */}
-                <div className="md:col-span-3 flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider">
-                    💡 Hint (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={movie.optionalHint || ''}
-                    onChange={(e) => handleHintChange(movie.id, e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-sm text-[#f0f4ff] focus:border-purple-500/50 focus:outline-none"
-                    placeholder="e.g. Amitabh Bachchan"
-                  />
+                    {/* Delete Clip Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(movie.id)}
+                      className="flex items-center gap-2 px-5 py-3 rounded-xl bg-red-500/15 border border-red-500/35 text-red-300 font-extrabold text-sm hover:bg-red-500/30 hover:scale-[1.02] transition-all cursor-pointer shadow-lg"
+                    >
+                      <span>🗑️ Delete Clip</span>
+                    </button>
+
+                    {/* Save Changes Button */}
+                    <button
+                      type="button"
+                      onClick={handleSaveAll}
+                      className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 border border-white/20 text-white font-extrabold text-sm hover:scale-[1.02] transition-all cursor-pointer shadow-lg shadow-purple-500/25 ml-auto"
+                    >
+                      <span>💾 Save Changes</span>
+                    </button>
+                  </div>
+
                 </div>
               </div>
             </Reorder.Item>
