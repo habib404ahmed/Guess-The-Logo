@@ -71,6 +71,7 @@ export interface LogoQuestion extends BaseQuestion {
 export interface MovieQuestion extends BaseQuestion {
   type: 'movie';
   dialogueSrc: string;
+  videoUrl?: string;
   movieTitle: string;
   dialogueText?: string;
   releaseYear: number;

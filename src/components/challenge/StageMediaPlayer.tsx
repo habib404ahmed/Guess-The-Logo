@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface StageMediaPlayerProps {
   mediaSrc: string;
+  videoUrl?: string;
   fileName?: string;
   movieTitle?: string;
   genre?: string;
@@ -28,20 +29,23 @@ function FilmIcon() {
 }
 
 export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayerProps>(
-  ({ mediaSrc, fileName, speaker, lines = [], linesShown = 0, autoPlayOnMount = false }, ref) => {
+  ({ mediaSrc, videoUrl, fileName, speaker, lines = [], linesShown = 0, autoPlayOnMount = false }, ref) => {
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
 
+    // Exact video source shared between Video Player and Replay button
+    const activeMediaUrl = videoUrl || mediaSrc || '';
+
     // Detect if media is a video file, video Data URL, or video Blob URL
     const isVideo =
-      Boolean(mediaSrc) &&
+      Boolean(activeMediaUrl) &&
       (
-        mediaSrc.startsWith('blob:') ||
-        mediaSrc.startsWith('data:video/') ||
-        /\.(mp4|mov|webm|mkv|avi|m4v)$/i.test(mediaSrc) ||
+        activeMediaUrl.startsWith('blob:') ||
+        activeMediaUrl.startsWith('data:video/') ||
+        /\.(mp4|mov|webm|mkv|avi|m4v)$/i.test(activeMediaUrl) ||
         (fileName && /\.(mp4|mov|webm|mkv|avi|m4v)$/i.test(fileName)) ||
-        !mediaSrc.startsWith('data:audio/')
+        !activeMediaUrl.startsWith('data:audio/')
       );
 
     useImperativeHandle(ref, () => ({
@@ -87,9 +91,9 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
       if (isVideo && videoRef.current) {
         videoRef.current.currentTime = 0;
         videoRef.current.play().catch(() => setIsPlaying(false));
-      } else if (mediaSrc) {
+      } else if (activeMediaUrl) {
         if (audioRef.current) audioRef.current.pause();
-        const audio = new Audio(mediaSrc);
+        const audio = new Audio(activeMediaUrl);
         audioRef.current = audio;
         audio.play().catch(() => setIsPlaying(false));
         audio.onended = () => setIsPlaying(false);
@@ -98,7 +102,7 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
         if (videoRef.current) videoRef.current.pause();
         if (audioRef.current) audioRef.current.pause();
       };
-    }, [mediaSrc, isVideo, autoPlayOnMount]);
+    }, [activeMediaUrl, isVideo, autoPlayOnMount]);
 
     return (
       <div className="relative w-full max-w-2xl">
@@ -116,7 +120,7 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
             border: '2px solid rgba(168,85,247,0.4)',
             boxShadow:
               '0 24px 70px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.25), 0 0 50px rgba(168,85,247,0.25)',
-            minHeight: isVideo ? '320px' : '220px',
+            minHeight: isVideo && activeMediaUrl ? '320px' : '220px',
           }}
         >
           {/* Futuristic HUD Corner Accents */}
@@ -135,18 +139,18 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
           />
 
           {/* ── VIDEO PLAYER MODE ── */}
-          {isVideo ? (
+          {isVideo && activeMediaUrl ? (
             <div className="relative w-full overflow-hidden bg-black/70 rounded-3xl aspect-video flex items-center justify-center">
               <video
                 ref={videoRef}
-                src={mediaSrc}
+                src={activeMediaUrl}
                 controls
                 playsInline
                 preload="metadata"
                 autoPlay={false}
                 controlsList="nodownload noplaybackrate noremoteplayback"
                 disablePictureInPicture
-                className="h-full w-full object-contain rounded-3xl"
+                className="h-full w-full object-contain rounded-3xl movie-player"
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 onEnded={() => setIsPlaying(false)}
@@ -161,7 +165,7 @@ export const StageMediaPlayer = forwardRef<StageMediaPlayerRef, StageMediaPlayer
               )}
             </div>
           ) : (
-            /* ── AUDIO DIALOGUE CARD MODE ── */
+            /* ── AUDIO DIALOGUE CARD / PLACEHOLDER MODE (Only shown if no video exists) ── */
             <div className="relative p-8 flex flex-col gap-4">
               {/* Decorative Quote Mark */}
               <span

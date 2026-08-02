@@ -3,6 +3,7 @@ import { motion, Reorder } from 'framer-motion';
 import type { MovieQuestion } from '@/types';
 import {
   saveStoredMovies,
+  saveMediaBlob,
   deleteMediaBlob,
   type ExtendedMovieQuestion,
 } from '@/utils/storage';
@@ -83,7 +84,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
       m.movieTitle.trim() !== '' &&
       m.dialogueText &&
       m.dialogueText.trim() !== '' &&
-      Boolean(m.dialogueSrc),
+      Boolean(m.dialogueSrc || m.videoUrl),
   ).length;
   const incompleteCount = movies.length - readyCount;
 
@@ -115,10 +116,14 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
         const objectUrl = URL.createObjectURL(file);
         const questionId = `movie-custom-${Date.now()}-${i}`;
 
+        // Save raw binary file to IndexedDB immediately on import
+        await saveMediaBlob(questionId, file);
+
         newQuestions.push({
           id: questionId,
           type: 'movie',
           dialogueSrc: objectUrl,
+          videoUrl: objectUrl,
           _rawFile: file,
           movieTitle,
           dialogueText: `"${movieTitle} - Famous Dialogue Clip"`,
@@ -160,10 +165,14 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
       const questionId = `movie-custom-${Date.now()}`;
       const allTitles = movies.map((m) => m.movieTitle);
 
+      // Save raw binary file to IndexedDB immediately on add
+      await saveMediaBlob(questionId, file);
+
       const newQ: ExtendedMovieQuestion = {
         id: questionId,
         type: 'movie',
         dialogueSrc: objectUrl,
+        videoUrl: objectUrl,
         _rawFile: file,
         movieTitle,
         dialogueText: `"${movieTitle} - Dialogue"`,
@@ -478,11 +487,12 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
         className="flex flex-col gap-6"
       >
         {movies.map((movie, idx) => {
+          const mediaSrc = movie.dialogueSrc || movie.videoUrl || '';
           const isVideo =
             !movie.fileName ||
-            /\.(mp4|mov|webm|mkv)$/i.test(movie.dialogueSrc) ||
-            movie.dialogueSrc.startsWith('data:video/') ||
-            movie.dialogueSrc.startsWith('blob:') ||
+            /\.(mp4|mov|webm|mkv)$/i.test(mediaSrc) ||
+            mediaSrc.startsWith('data:video/') ||
+            mediaSrc.startsWith('blob:') ||
             (movie.fileName && /\.(mp4|mov|webm)$/i.test(movie.fileName));
 
           return (
@@ -537,10 +547,10 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
                       boxShadow: '0 0 20px rgba(0, 240, 255, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
                     }}
                   >
-                    {isVideo ? (
+                    {isVideo && mediaSrc ? (
                       <video
                         id={`video-player-${movie.id}`}
-                        src={movie.dialogueSrc}
+                        src={mediaSrc}
                         controls
                         preload="metadata"
                         playsInline
@@ -550,7 +560,7 @@ export function MovieAdminTab({ movies, onUpdateMovies }: MovieAdminTabProps) {
                     ) : (
                       <audio
                         id={`video-player-${movie.id}`}
-                        src={movie.dialogueSrc}
+                        src={mediaSrc}
                         controls
                         preload="metadata"
                         className="w-full px-4"

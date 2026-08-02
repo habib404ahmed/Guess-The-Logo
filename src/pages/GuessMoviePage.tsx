@@ -57,6 +57,20 @@ export function GuessMoviePage() {
 
   const questionTime = settings.questionTimer || 25;
 
+  // Debug console logs as requested
+  useEffect(() => {
+    if (currentQuestion) {
+      console.log('🎥 [Movie Stage Debug]', {
+        'Current Question Index': index + 1,
+        'Movie Count': questions.length,
+        'Current Movie': currentQuestion,
+        'Video URL': currentQuestion.videoUrl || currentQuestion.dialogueSrc,
+        'Video Blob': (currentQuestion as unknown as Record<string, unknown>)._rawFile || 'Stored in IndexedDB',
+        'Video Exists': Boolean(currentQuestion.videoUrl || currentQuestion.dialogueSrc),
+      });
+    }
+  }, [currentQuestion, index, questions.length]);
+
   // ── Timer ──────────────────────────────────────────────────────────────────
   const { seconds, start, reset } = useCountdown({
     duration: questionTime,
@@ -195,6 +209,8 @@ export function GuessMoviePage() {
           <StageMediaPlayer
             ref={mediaPlayerRef}
             mediaSrc={currentQuestion.dialogueSrc}
+            videoUrl={currentQuestion.videoUrl || currentQuestion.dialogueSrc}
+            fileName={currentQuestion.fileName}
             movieTitle={currentQuestion.movieTitle}
             genre={currentQuestion.genre}
             speaker={dialogue?.speaker}

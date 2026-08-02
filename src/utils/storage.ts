@@ -2,7 +2,6 @@ import type { LogoQuestion, MovieQuestion } from '@/types';
 import { logoQuestions as defaultLogoQuestions } from '@/data/logoQuestions';
 import { movieQuestions as defaultMovieQuestions } from '@/data/movieQuestions';
 
-// Extended type to hold optional transient file reference during upload
 export interface ExtendedMovieQuestion extends MovieQuestion {
   _rawFile?: File | Blob;
 }
@@ -15,7 +14,7 @@ const MOVIES_KEY   = 'fresher_arena_movies';
 
 // ─── IndexedDB Persistent Storage (Stores Raw Video & Image Blobs) ────────────
 
-const DB_NAME = 'FresherArenaMediaDB_v2';
+const DB_NAME = 'FresherArenaMediaDB_v3';
 const DB_VERSION = 1;
 const STORE_NAME = 'app_metadata';
 const BLOB_STORE_NAME = 'media_blobs';
@@ -283,14 +282,21 @@ export async function getStoredMoviesAsync(): Promise<MovieQuestion[]> {
       // Re-hydrate video Blob URLs from IndexedDB for each movie clip
       const resolved = await Promise.all(
         movies.map(async (m) => {
-          if (!m.dialogueSrc || m.dialogueSrc.trim() === '' || m.dialogueSrc.startsWith('blob:')) {
-            const blob = await getMediaBlob(m.id);
-            if (blob) {
-              const objectUrl = URL.createObjectURL(blob);
-              return { ...m, dialogueSrc: objectUrl };
-            }
+          const blob = await getMediaBlob(m.id);
+          if (blob) {
+            const objectUrl = URL.createObjectURL(blob);
+            return {
+              ...m,
+              dialogueSrc: objectUrl,
+              videoUrl: objectUrl,
+            };
           }
-          return m;
+          const validSrc = m.dialogueSrc && !m.dialogueSrc.startsWith('blob:') ? m.dialogueSrc : '';
+          return {
+            ...m,
+            dialogueSrc: validSrc,
+            videoUrl: validSrc,
+          };
         }),
       );
 
@@ -330,14 +336,17 @@ export async function saveStoredMoviesAsync(movies: ExtendedMovieQuestion[]): Pr
     }
   }
 
-  // 2. Clean metadata representation (strip out huge base64 strings so metadata is lightweight!)
+  // 2. Clean metadata representation (strip out expired blob: URLs & huge base64 strings)
   const cleanMetadata: MovieQuestion[] = movies.map((m) => {
+    const isBlobUrl = m.dialogueSrc && m.dialogueSrc.startsWith('blob:');
     const isHuge = m.dialogueSrc && m.dialogueSrc.length > 50000;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { _rawFile, ...rest } = m;
+    const srcToStore = isBlobUrl || isHuge ? '' : rest.dialogueSrc;
     return {
       ...rest,
-      dialogueSrc: isHuge ? '' : rest.dialogueSrc,
+      dialogueSrc: srcToStore,
+      videoUrl: srcToStore,
     };
   });
 
