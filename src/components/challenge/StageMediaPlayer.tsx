@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, forwardRef, useImperativeHandle, memo } fr
 import { motion } from 'framer-motion';
 
 interface StageMediaPlayerProps {
+  questionId?: string;
   mediaSrc: string;
   videoUrl?: string;
   autoPlayOnMount?: boolean;
@@ -28,7 +29,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
       setVideoSrc(activeMediaUrl);
     }, [activeMediaUrl]);
 
-    // Attach HTML5 video event listeners
+    // Attach complete suite of requested HTML5 video event listeners
     useEffect(() => {
       const v = videoRef.current;
       if (!v) return;
@@ -69,31 +70,50 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
       };
     }, [videoSrc]);
 
-    // 6. Safe play helper with unmuted sound enabled by default
+    // 4. Wait for readyState >= 3 (canplay event) before calling play()
     const safePlay = async () => {
-      if (!videoRef.current) return;
-      videoRef.current.muted = false;
+      const v = videoRef.current;
+      if (!v) return;
+
+      // Log values before playback as requested
+      console.log("video.readyState =", v.readyState);
+      console.log("video.networkState =", v.networkState);
+      console.log("video.currentSrc =", v.currentSrc);
+      console.log("video.videoWidth =", v.videoWidth);
+      console.log("video.videoHeight =", v.videoHeight);
+      console.log("video.paused =", v.paused);
+
+      // Wait until video canplay (readyState >= 3)
+      await new Promise<void>((resolve) => {
+        if (v.readyState >= 3) {
+          resolve();
+        } else {
+          const handler = () => resolve();
+          v.addEventListener('canplay', handler, { once: true });
+        }
+      });
+
+      v.muted = false;
 
       try {
-        await videoRef.current.play();
+        await v.play();
         setIsPlaying(true);
       } catch (err) {
-        console.warn('[Autoplay] Retrying unmuted playback after user interaction:', err);
-        if (videoRef.current) {
-          videoRef.current.muted = false;
-          await videoRef.current.play().catch(() => {});
+        console.warn('[Autoplay Policy] Unmuted play blocked, retrying:', err);
+        if (v) {
+          v.muted = false;
+          await v.play().catch(() => {});
           setIsPlaying(true);
         }
       }
     };
 
-    // 2. & 5. Replay button: video.pause(); video.currentTime = 0; video.play();
+    // 2. & 5. Replay button: video.pause(); video.currentTime = 0; await video.play();
     useImperativeHandle(ref, () => ({
       replay: async () => {
         if (videoRef.current) {
           videoRef.current.pause();
           videoRef.current.currentTime = 0;
-          videoRef.current.muted = false;
           await safePlay();
         }
       },
@@ -170,7 +190,7 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
             }}
           />
 
-          {/* ── 8. NO DEFAULT HTML VIDEO CONTROLS (controls={false}) ── */}
+          {/* ── 8. NO EXPENSIVE CSS ON VIDEO (NO BLUR, NO FILTER, NO SCALE TO PREVENT STUTTER) ── */}
           <div
             className="relative overflow-hidden bg-black/90 rounded-[24px] flex items-center justify-center transform-gpu translate-z-0"
             style={{
@@ -227,9 +247,11 @@ const StageMediaPlayerComponent = forwardRef<StageMediaPlayerRef, StageMediaPlay
   },
 );
 
+// 7. Memoize video component so it re-renders ONLY when questionId, videoUrl, or mediaSrc changes
 export const StageMediaPlayer = memo(
   StageMediaPlayerComponent,
   (prev, next) =>
+    prev.questionId === next.questionId &&
     prev.videoUrl === next.videoUrl &&
     prev.mediaSrc === next.mediaSrc &&
     prev.autoPlayOnMount === next.autoPlayOnMount,

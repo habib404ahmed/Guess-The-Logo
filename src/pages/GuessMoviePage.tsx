@@ -55,7 +55,7 @@ export function GuessMoviePage() {
   const mediaPlayerRef = useRef<StageMediaPlayerRef | null>(null);
   const { play, playRevealSequence, playNextSequence } = useSound();
 
-  // 8. Memoize the current question
+  // 7. Memoize current question so video component rerenders ONLY when currentQuestion.id changes
   const currentQuestion = useMemo(() => {
     return questions[index];
   }, [questions, index]);
@@ -70,7 +70,7 @@ export function GuessMoviePage() {
 
   const questionTime = settings.questionTimer || 25;
 
-  // 🔍 Exact Required Property Logs for Current Movie
+  // 🔍 Log current movie details
   useEffect(() => {
     if (currentQuestion) {
       const q = currentQuestion as ExtendedMovieQuestion;
@@ -114,14 +114,14 @@ export function GuessMoviePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, showCountdown]);
 
-  // ── Step-by-Step Callback ─────────────────────────────────────────────────
+  // ── Step-by-Step Callback: Countdown finishes -> AI voice finishes -> Auto play video with sound ──
   const handleCountdownComplete = useCallback(() => {
     setShowCountdown(false);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       setAutoPlayVideo(true);
       if (mediaPlayerRef.current) {
-        mediaPlayerRef.current.play();
+        await mediaPlayerRef.current.play();
       }
       setIsControlsDisabled(false);
       start();
@@ -130,7 +130,7 @@ export function GuessMoviePage() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
-  // 5. Replay button handler: video.pause(); video.currentTime = 0; await video.play();
+  // Replay clip handler
   const handleReplay = useCallback(async () => {
     if (isControlsDisabled) return;
     play('click');
@@ -229,6 +229,7 @@ export function GuessMoviePage() {
         <div className="lg:col-span-7 flex flex-col items-center justify-center">
           <StageMediaPlayer
             ref={mediaPlayerRef}
+            questionId={currentQuestion.id}
             mediaSrc={activeVideoUrl}
             videoUrl={activeVideoUrl}
             autoPlayOnMount={autoPlayVideo}
